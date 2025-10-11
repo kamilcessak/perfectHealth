@@ -1,0 +1,13 @@
+{
+  "name": "PerfectHealth",
+  "short_name": "PHealth",
+  "description": "Aplikacja do śledzenia stanu zdrowia: pomiary, żywienie, trening.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f7",
+  "theme_color": "#005b96",
+  "icons": [
+    { "src": "/icons/icon.png", "sizes": "472x472", "type": "image/png" }
+  ]
+}
