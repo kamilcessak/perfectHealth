@@ -1,4 +1,5 @@
 import { getBpList, getWeightList, addWeight, addBp } from "./controller.js";
+import { getErrorMessage, escapeHtml } from "../../utils/error.js";
 
 const MeasurementsView = async () => {
   const root = document.createElement("section");
@@ -22,8 +23,8 @@ const MeasurementsView = async () => {
                   <input name="time" type="time" />
               </label>
               <label>Lokalizacja
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                      <input name="location" type="text" placeholder="Opcjonalna..." style="flex: 1;" />
+                  <div class="location-input-row">
+                      <input name="location" type="text" placeholder="Opcjonalna..." class="location-input" />
                       <button type="button" id="get-location-btn">📍 Pobierz</button>
                   </div>
               </label>
@@ -32,7 +33,7 @@ const MeasurementsView = async () => {
               </label>
               <button class="btn" type="submit">Zapisz pomiar</button>
           </form>
-          <p id="bp-msg" style="margin-top:16px"></p>
+          <p id="bp-msg" class="form-msg"></p>
       </div>
 
       <div class="card">
@@ -52,7 +53,7 @@ const MeasurementsView = async () => {
           </label>
           <button class="btn" type="submit">Zapisz pomiar</button>
         </form>
-        <p id="weight-msg" style="margin-top:16px"></p>
+        <p id="weight-msg" class="form-msg"></p>
       </div>
     </div>
     <div class="measurementsListWrapper">
@@ -144,7 +145,7 @@ const MeasurementsView = async () => {
       },
       (error) => {
         bpMsg.style.color = "#c00";
-        bpMsg.textContent = `Błąd pobierania lokalizacji: ${error.message}`;
+        bpMsg.textContent = `Błąd pobierania lokalizacji: ${getErrorMessage(error)}`;
         getLocationBtn.disabled = false;
         getLocationBtn.textContent = "📍 Pobierz";
       },
@@ -179,7 +180,7 @@ const MeasurementsView = async () => {
       await refreshBp();
     } catch (error) {
       bpMsg.style.color = "#c00";
-      bpMsg.textContent = `Błąd: ${error?.message || error}`;
+      bpMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
 
@@ -204,43 +205,49 @@ const MeasurementsView = async () => {
       await refreshWg();
     } catch (error) {
       wgMsg.style.color = "#c00";
-      wgMsg.textContent = `Błąd: ${err?.message || err}`;
+      wgMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
 
   const refreshBp = async () => {
-    const items = await getBpList(20);
-
-    if (!items.length) {
-      bpList.innerHTML = `<li>Brak danych</li>`;
-      return;
-    }
-
-    bpList.innerHTML = items
-      .map(
-        (e) =>
-          `<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>
+    try {
+      const items = await getBpList(20);
+      if (!items.length) {
+        bpList.innerHTML = `<li>Brak danych</li>`;
+        return;
+      }
+      bpList.innerHTML = items
+        .map(
+          (e) =>
+            `<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>
          ${
            e.location ? ` <br/><small>📍 ${escapeHtml(e.location)}</small>` : ""
          }
          ${e.note ? ` <br/><em>${escapeHtml(e.note)}</em>` : ""}
          </li>`
-      )
-      .join("");
+        )
+        .join("");
+    } catch (error) {
+      bpList.innerHTML = `<li class="list-error">Nie udało się załadować pomiarów. ${escapeHtml(getErrorMessage(error))}</li>`;
+    }
   };
 
   const refreshWg = async () => {
-    const items = await getWeightList(20);
-    wgList.innerHTML = items.length
-      ? items
-          .map(
-            (e) => `
+    try {
+      const items = await getWeightList(20);
+      wgList.innerHTML = items.length
+        ? items
+            .map(
+              (e) => `
       <li>${fmtDate(e.ts)} - <strong>${e.value.toFixed(1)} kg</strong>${
-              e.note ? ` <em>${escapeHtml(e.note)}</em>` : ""
-            }</li>`
-          )
-          .join("")
-      : `<li>Brak danych</li>`;
+                e.note ? ` <em>${escapeHtml(e.note)}</em>` : ""
+              }</li>`
+            )
+            .join("")
+        : `<li>Brak danych</li>`;
+    } catch (error) {
+      wgList.innerHTML = `<li class="list-error">Nie udało się załadować pomiarów wagi. ${escapeHtml(getErrorMessage(error))}</li>`;
+    }
   };
 
   await Promise.all([refreshBp(), refreshWg()]);
@@ -249,16 +256,6 @@ const MeasurementsView = async () => {
 
 const fmtDate = (ts) => {
   return new Date(ts).toLocaleString();
-};
-
-const escapeHtml = (s) => {
-  return String(s).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-        c
-      ])
-  );
 };
 
 export default MeasurementsView;

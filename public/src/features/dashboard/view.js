@@ -1,17 +1,17 @@
 import { getTodaySummary } from "./controller.js";
+import { getErrorMessage, escapeHtml } from "../../utils/error.js";
 
 const DashboardView = async () => {
-  const data = await getTodaySummary();
   const el = document.createElement("section");
 
-  el.innerHTML = `
+  try {
+    const data = await getTodaySummary();
+    el.innerHTML = `
     <div>
         <div>
             <h2>Kalorie dzisiaj:</h2>
             <p>
-                <strong>${data.calories.eaten}</strong> / ${
-    data.calories.target
-  } kcal
+                <strong>${data.calories.eaten}</strong> / ${data.calories.target} kcal
             </p>
         </div>
         <div>
@@ -36,6 +36,11 @@ const DashboardView = async () => {
         </div>
     </div>
     `;
+  } catch (error) {
+    console.error(error);
+    const message = escapeHtml(getErrorMessage(error));
+    el.innerHTML = `<div class="errorBox"><strong>Nie udało się załadować podsumowania.</strong><br />${message}</div>`;
+  }
 
   return el;
 };

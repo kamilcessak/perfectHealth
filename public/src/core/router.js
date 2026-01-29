@@ -1,3 +1,5 @@
+import { getErrorMessage, escapeHtml } from "../utils/error.js";
+
 // Mapa przechowująca zarejestrowane trasy aplikacji
 const routes = new Map();
 
@@ -19,9 +21,8 @@ export const startRouter = () => {
       setActiveLink();
     } catch (error) {
       console.error(error);
-      root.innerHTML = `<div class="errorBox"><strong>Wystąpił błąd podczas ładowania strony.</strong><br />${
-        error?.message || error
-      }</div>`;
+      const message = escapeHtml(getErrorMessage(error));
+      root.innerHTML = `<div class="errorBox"><strong>Wystąpił błąd podczas ładowania strony.</strong><br />${message}</div>`;
     }
   };
 

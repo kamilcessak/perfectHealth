@@ -69,6 +69,11 @@ nav a.active {
   font-size: 0.9rem;
 }
 
+#offline-banner .offline-banner-desc {
+  font-size: 0.85em;
+  margin-left: 8px;
+}
+
 @media (max-width: 600px) {
   #offline-banner {
     flex-direction: column;
@@ -89,6 +94,21 @@ main {
     padding: 0 0.75rem;
   }
 }
+
+.errorBox {
+  background: #fff3f3;
+  border: 1px solid #e0b4b4;
+  color: #c00;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.list-error {
+  color: #c00;
+  font-size: 0.9em;
+}
+
 .card {
   background: #fff;
   border-radius: 12px;
@@ -164,6 +184,20 @@ main {
   cursor: not-allowed;
 }
 
+.form-msg {
+  margin-top: 1rem;
+}
+
+.location-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.location-input-row .location-input {
+  flex: 1;
+}
+
 .measurementsWrapper{
   display: flex;
   flex-direction: column;
@@ -236,6 +270,35 @@ main {
   border-radius: 4px;
   cursor: pointer;
   margin-top: 8px;
+}
+
+.meal-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.meal-item-img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.meal-item-body {
+  flex: 1;
+}
+
+.meal-item-macros {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 4px;
+}
+
+.meal-item-note {
+  font-size: 0.85em;
+  color: #888;
+  margin-top: 4px;
 }
 
 .mealsWrapper {
@@ -323,15 +386,15 @@ ul li img {
 }
 
 @media (max-width: 480px) {
-  ul li div[style*="display: flex"] {
-    flex-direction: column !important;
-    gap: 8px !important;
+  .meal-item {
+    flex-direction: column;
+    gap: 8px;
   }
   
-  ul li img {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 200px !important;
+  .meal-item-img {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
   }
 }
 

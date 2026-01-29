@@ -1,4 +1,5 @@
 import { getMealList, addMeal } from "./controller.js";
+import { getErrorMessage, escapeHtml } from "../../utils/error.js";
 
 const MealsView = async () => {
   const root = document.createElement("section");
@@ -38,7 +39,7 @@ const MealsView = async () => {
           </label>
           <button class="btn" type="submit">Zapisz posiłek</button>
         </form>
-        <p id="meal-msg" style="margin-top:16px"></p>
+        <p id="meal-msg" class="form-msg"></p>
       </div>
     </div>
     <div class="mealsListWrapper">
@@ -90,37 +91,41 @@ const MealsView = async () => {
       await refreshMeals();
     } catch (error) {
       mealMsg.style.color = "#c00";
-      mealMsg.textContent = `Błąd: ${error?.message || error}`;
+      mealMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
 
   const refreshMeals = async () => {
-    const items = await getMealList(20);
+    try {
+      const items = await getMealList(20);
 
-    if (!items.length) {
-      mealList.innerHTML = `<li>Brak danych</li>`;
-      return;
-    }
+      if (!items.length) {
+        mealList.innerHTML = `<li>Brak danych</li>`;
+        return;
+      }
 
-    mealList.innerHTML = items
+      mealList.innerHTML = items
       .map(
         (e) => `
           <li>
-            <div style="display: flex; gap: 16px; align-items: start;">
-              ${e.image ? `<img src="${e.image}" alt="${escapeHtml(e.description || 'Posiłek')}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px;" />` : ''}
-              <div style="flex: 1;">
+            <div class="meal-item">
+              ${e.image ? `<img src="${e.image}" alt="${escapeHtml(e.description || 'Posiłek')}" class="meal-item-img" />` : ''}
+              <div class="meal-item-body">
                 <div><strong>${fmtDate(e.ts)}</strong> - <strong>${e.calories} kcal</strong></div>
                 ${e.description ? `<div>${escapeHtml(e.description)}</div>` : ''}
-                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
+                <div class="meal-item-macros">
                   B: ${e.protein.toFixed(1)}g | W: ${e.carbs.toFixed(1)}g | T: ${e.fats.toFixed(1)}g
                 </div>
-                ${e.note ? `<div style="font-size: 0.85em; color: #888; margin-top: 4px;"><em>${escapeHtml(e.note)}</em></div>` : ''}
+                ${e.note ? `<div class="meal-item-note"><em>${escapeHtml(e.note)}</em></div>` : ''}
               </div>
             </div>
           </li>
         `
       )
       .join("");
+    } catch (error) {
+      mealList.innerHTML = `<li class="list-error">Nie udało się załadować posiłków. ${escapeHtml(getErrorMessage(error))}</li>`;
+    }
   };
 
   await refreshMeals();
@@ -129,16 +134,6 @@ const MealsView = async () => {
 
 const fmtDate = (ts) => {
   return new Date(ts).toLocaleString();
-};
-
-const escapeHtml = (s) => {
-  return String(s).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-        c
-      ])
-  );
 };
 
 export default MealsView;
