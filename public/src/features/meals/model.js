@@ -1,3 +1,5 @@
+import { uuid } from "../../utils/uuid.js";
+
 // Waliduje dane posiłku
 export const validateMeal = (e) => {
   if (e.type !== "meal") throw new Error("Nieprawidłowy typ posiłku");
@@ -23,9 +25,7 @@ export const newMeal = ({
   note = "",
 }) => {
   const result = {
-    id: crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`,
+    id: uuid(),
     type: "meal",
     calories: +calories,
     description: `${description}`,

@@ -36,8 +36,3 @@ export const database = async () => {
 export const tx = (store, mode = "readonly") => {
   return database().then((d) => d.transaction(store, mode));
 };
-
-// Generuje unikalny identyfikator UUID
-export const uuid = () =>
-  crypto?.randomUUID?.() ??
-  `${Date.now()}-${Math.random().toString(16).slice(2)}`;

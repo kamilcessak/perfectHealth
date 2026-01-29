@@ -1,3 +1,5 @@
+import { uuid } from "../../utils/uuid.js";
+
 // Waliduje dane pomiaru ciśnienia krwi
 export const validateBloodPreassure = (e) => {
   if (e.type !== "bp") throw new Error("Nieprawidłowy typ pomiaru");
@@ -26,9 +28,7 @@ export const validateWeight = (e) => {
 // Tworzy nowy obiekt pomiaru ciśnienia krwi z walidacją
 export const newBloodPressure = ({ sys, dia, ts = Date.now(), note = "", location = "" }) => {
   const result = {
-    id: crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`,
+    id: uuid(),
     type: "bp",
     value: +sys,
     value2: +dia,
@@ -43,9 +43,7 @@ export const newBloodPressure = ({ sys, dia, ts = Date.now(), note = "", locatio
 // Tworzy nowy obiekt pomiaru wagi z walidacją
 export const newWeight = ({ kg, ts = Date.now(), note = "" }) => {
   const result = {
-    id: crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`,
+    id: uuid(),
     type: "weight",
     value: +kg,
     ts: +ts,
