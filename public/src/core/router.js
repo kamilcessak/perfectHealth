@@ -1,4 +1,6 @@
-import { getErrorMessage, escapeHtml } from "../utils/error.js";
+import { getErrorMessage } from "../utils/error.js";
+import { debounce } from "../utils/debounce.js";
+import { RENDER_DEBOUNCE_MS } from "../constants.js";
 
 // Mapa przechowująca zarejestrowane trasy aplikacji
 const routes = new Map();
@@ -21,12 +23,22 @@ export const startRouter = () => {
       setActiveLink();
     } catch (error) {
       console.error(error);
-      const message = escapeHtml(getErrorMessage(error));
-      root.innerHTML = `<div class="errorBox"><strong>Wystąpił błąd podczas ładowania strony.</strong><br />${message}</div>`;
+      const box = document.createElement("div");
+      box.className = "errorBox";
+      const strong = document.createElement("strong");
+      strong.textContent = "Wystąpił błąd podczas ładowania strony.";
+      const br = document.createElement("br");
+      const msg = document.createTextNode(getErrorMessage(error));
+      box.appendChild(strong);
+      box.appendChild(br);
+      box.appendChild(msg);
+      root.replaceChildren(box);
     }
   };
 
-  addEventListener("hashchange", render);
+  const debouncedRender = debounce(render, RENDER_DEBOUNCE_MS);
+
+  addEventListener("hashchange", debouncedRender);
 
   if (document.readyState === "loading") {
     addEventListener("DOMContentLoaded", render);
@@ -46,9 +58,9 @@ export const setActiveLink = () => {
 // Trasa 404 dla nieistniejących stron
 registerRoute("/404", async () => {
   const el = document.createElement("div");
-
   el.className = "404box";
-  el.innerHTML = `<h2>Nie znaleziono strony</h2>`;
-
+  const h2 = document.createElement("h2");
+  h2.textContent = "Nie znaleziono strony";
+  el.appendChild(h2);
   return el;
 });

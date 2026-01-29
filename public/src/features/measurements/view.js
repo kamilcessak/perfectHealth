@@ -1,5 +1,17 @@
 import { getBpList, getWeightList, addWeight, addBp } from "./controller.js";
-import { getErrorMessage, escapeHtml } from "../../utils/error.js";
+import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
+import {
+  BP_SYS_MIN,
+  BP_SYS_MAX,
+  BP_DIA_MIN,
+  BP_DIA_MAX,
+  WEIGHT_MIN_KG,
+  WEIGHT_MAX_KG,
+  MAX_NOTE_LENGTH,
+  MAX_LOCATION_LENGTH,
+  DEFAULT_LIST_LIMIT,
+  GEOLOCATION_TIMEOUT_MS,
+} from "../../constants.js";
 
 const MeasurementsView = async () => {
   const root = document.createElement("section");
@@ -11,10 +23,10 @@ const MeasurementsView = async () => {
           <h1>Dodaj pomiar ciśnienia:</h1>
           <form id="bp-form">
               <label>Skurczowe
-                  <input name="sys" type="number" min="60" max="250" required />
+                  <input name="sys" type="number" min="${BP_SYS_MIN}" max="${BP_SYS_MAX}" required />
               </label>
               <label>Rozkurczowe
-                  <input name="dia" type="number" min="30" max="150" required />
+                  <input name="dia" type="number" min="${BP_DIA_MIN}" max="${BP_DIA_MAX}" required />
               </label>
               <label>Data pomiaru
                   <input name="date" type="date" />
@@ -24,12 +36,12 @@ const MeasurementsView = async () => {
               </label>
               <label>Lokalizacja
                   <div class="location-input-row">
-                      <input name="location" type="text" placeholder="Opcjonalna..." class="location-input" />
+                      <input name="location" type="text" placeholder="Opcjonalna..." class="location-input" maxlength="${MAX_LOCATION_LENGTH}" />
                       <button type="button" id="get-location-btn">📍 Pobierz</button>
                   </div>
               </label>
               <label>Notatka
-                  <input name="note" type="text" placeholder="Opcjonalna..." />
+                  <input name="note" type="text" placeholder="Opcjonalna..." maxlength="${MAX_NOTE_LENGTH}" />
               </label>
               <button class="btn" type="submit">Zapisz pomiar</button>
           </form>
@@ -40,7 +52,7 @@ const MeasurementsView = async () => {
         <h1>Dodaj pomiar wagi:</h1>
         <form id="weight-form">
           <label>Waga (kg)
-            <input name="kg" type="number" step="0.1" min="1" max="500" required />
+            <input name="kg" type="number" step="0.1" min="${WEIGHT_MIN_KG}" max="${WEIGHT_MAX_KG}" required />
           </label>
           <label>Data pomiaru
               <input name="date" type="date" />
@@ -49,7 +61,7 @@ const MeasurementsView = async () => {
               <input name="time" type="time" />
           </label>
           <label>Notatka
-              <input name="note" type="text" placeholder="Opcjonalna..." />
+              <input name="note" type="text" placeholder="Opcjonalna..." maxlength="${MAX_NOTE_LENGTH}" />
           </label>
           <button class="btn" type="submit">Zapisz pomiar</button>
         </form>
@@ -83,7 +95,7 @@ const MeasurementsView = async () => {
   // Funkcja do pobierania lokalizacji
   const getLocation = () => {
     if (!navigator.geolocation) {
-      bpMsg.style.color = "#c00";
+      bpMsg.className = "form-msg form-msg-error";
       bpMsg.textContent =
         "Geolokacja nie jest obsługiwana przez twoją przeglądarkę";
       return;
@@ -144,14 +156,14 @@ const MeasurementsView = async () => {
         }
       },
       (error) => {
-        bpMsg.style.color = "#c00";
+        bpMsg.className = "form-msg form-msg-error";
         bpMsg.textContent = `Błąd pobierania lokalizacji: ${getErrorMessage(error)}`;
         getLocationBtn.disabled = false;
         getLocationBtn.textContent = "📍 Pobierz";
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: GEOLOCATION_TIMEOUT_MS,
         maximumAge: 0,
       }
     );
@@ -175,11 +187,11 @@ const MeasurementsView = async () => {
       });
 
       bpForm.reset();
-      bpMsg.style.color = "#0a7";
+      bpMsg.className = "form-msg form-msg-success";
       bpMsg.textContent = "Zapisano pomiar!";
       await refreshBp();
     } catch (error) {
-      bpMsg.style.color = "#c00";
+      bpMsg.className = "form-msg form-msg-error";
       bpMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
@@ -199,54 +211,60 @@ const MeasurementsView = async () => {
       });
 
       wgForm.reset();
-      wgMsg.style.color = "#0a7";
+      wgMsg.className = "form-msg form-msg-success";
       wgMsg.textContent = "Zapisano pomiar!";
 
       await refreshWg();
     } catch (error) {
-      wgMsg.style.color = "#c00";
+      wgMsg.className = "form-msg form-msg-error";
       wgMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
 
   const refreshBp = async () => {
     try {
-      const items = await getBpList(20);
+      const items = await getBpList(DEFAULT_LIST_LIMIT);
       if (!items.length) {
-        bpList.innerHTML = `<li>Brak danych</li>`;
+        const li = document.createElement("li");
+        li.textContent = "Brak danych";
+        bpList.replaceChildren(li);
         return;
       }
       bpList.innerHTML = items
-        .map(
-          (e) =>
-            `<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>
-         ${
-           e.location ? ` <br/><small>📍 ${escapeHtml(e.location)}</small>` : ""
-         }
-         ${e.note ? ` <br/><em>${escapeHtml(e.note)}</em>` : ""}
-         </li>`
-        )
+        .map((e) => {
+          const locPart = e.location ? ` <br/><small>📍 ${escapeHtml(e.location)}</small>` : "";
+          const notePart = e.note ? ` <br/><em>${escapeHtml(e.note)}</em>` : "";
+          return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>${trusted(locPart)}${trusted(notePart)} </li>`;
+        })
         .join("");
     } catch (error) {
-      bpList.innerHTML = `<li class="list-error">Nie udało się załadować pomiarów. ${escapeHtml(getErrorMessage(error))}</li>`;
+      const li = document.createElement("li");
+      li.className = "list-error";
+      li.textContent = `Nie udało się załadować pomiarów. ${getErrorMessage(error)}`;
+      bpList.replaceChildren(li);
     }
   };
 
   const refreshWg = async () => {
     try {
-      const items = await getWeightList(20);
-      wgList.innerHTML = items.length
-        ? items
-            .map(
-              (e) => `
-      <li>${fmtDate(e.ts)} - <strong>${e.value.toFixed(1)} kg</strong>${
-                e.note ? ` <em>${escapeHtml(e.note)}</em>` : ""
-              }</li>`
-            )
-            .join("")
-        : `<li>Brak danych</li>`;
+      const items = await getWeightList(DEFAULT_LIST_LIMIT);
+      if (!items.length) {
+        const li = document.createElement("li");
+        li.textContent = "Brak danych";
+        wgList.replaceChildren(li);
+        return;
+      }
+      wgList.innerHTML = items
+        .map((e) => {
+          const notePart = e.note ? ` <em>${escapeHtml(e.note)}</em>` : "";
+          return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value.toFixed(1)} kg</strong>${trusted(notePart)}</li>`;
+        })
+        .join("");
     } catch (error) {
-      wgList.innerHTML = `<li class="list-error">Nie udało się załadować pomiarów wagi. ${escapeHtml(getErrorMessage(error))}</li>`;
+      const li = document.createElement("li");
+      li.className = "list-error";
+      li.textContent = `Nie udało się załadować pomiarów wagi. ${getErrorMessage(error)}`;
+      wgList.replaceChildren(li);
     }
   };
 

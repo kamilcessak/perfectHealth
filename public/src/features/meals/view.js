@@ -1,5 +1,13 @@
 import { getMealList, addMeal } from "./controller.js";
-import { getErrorMessage, escapeHtml } from "../../utils/error.js";
+import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
+import { assertImageFile, ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
+import {
+  CALORIES_MIN,
+  CALORIES_MAX,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_NOTE_LENGTH,
+  DEFAULT_LIST_LIMIT,
+} from "../../constants.js";
 
 const MealsView = async () => {
   const root = document.createElement("section");
@@ -11,10 +19,10 @@ const MealsView = async () => {
         <h1>Dodaj posiłek:</h1>
         <form id="meal-form">
           <label>Kalorie
-            <input name="calories" type="number" min="1" required />
+            <input name="calories" type="number" min="${CALORIES_MIN}" max="${CALORIES_MAX}" required />
           </label>
           <label>Opis
-            <input name="description" type="text" placeholder="Nazwa posiłku..." />
+            <input name="description" type="text" placeholder="Nazwa posiłku..." maxlength="${MAX_DESCRIPTION_LENGTH}" />
           </label>
           <label>Białko (g)
             <input name="protein" type="number" min="0" step="0.1" value="0" />
@@ -32,10 +40,10 @@ const MealsView = async () => {
             <input name="time" type="time" />
           </label>
           <label>Zdjęcie
-            <input name="image" type="file" accept="image/*" />
+            <input name="image" type="file" accept="${ALLOWED_IMAGE_TYPES.join(",")}" />
           </label>
           <label>Notatka
-            <input name="note" type="text" placeholder="Opcjonalna..." />
+            <input name="note" type="text" placeholder="Opcjonalna..." maxlength="${MAX_NOTE_LENGTH}" />
           </label>
           <button class="btn" type="submit">Zapisz posiłek</button>
         </form>
@@ -63,8 +71,9 @@ const MealsView = async () => {
     try {
       let imageData = null;
       const imageFile = fd.get("image");
-      
+
       if (imageFile && imageFile.size > 0) {
+        assertImageFile(imageFile);
         imageData = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -86,45 +95,39 @@ const MealsView = async () => {
       });
 
       mealForm.reset();
-      mealMsg.style.color = "#0a7";
+      mealMsg.className = "form-msg form-msg-success";
       mealMsg.textContent = "Zapisano posiłek!";
       await refreshMeals();
     } catch (error) {
-      mealMsg.style.color = "#c00";
+      mealMsg.className = "form-msg form-msg-error";
       mealMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
   });
 
   const refreshMeals = async () => {
     try {
-      const items = await getMealList(20);
+      const items = await getMealList(DEFAULT_LIST_LIMIT);
 
       if (!items.length) {
-        mealList.innerHTML = `<li>Brak danych</li>`;
+        const li = document.createElement("li");
+        li.textContent = "Brak danych";
+        mealList.replaceChildren(li);
         return;
       }
 
       mealList.innerHTML = items
-      .map(
-        (e) => `
-          <li>
-            <div class="meal-item">
-              ${e.image ? `<img src="${e.image}" alt="${escapeHtml(e.description || 'Posiłek')}" class="meal-item-img" />` : ''}
-              <div class="meal-item-body">
-                <div><strong>${fmtDate(e.ts)}</strong> - <strong>${e.calories} kcal</strong></div>
-                ${e.description ? `<div>${escapeHtml(e.description)}</div>` : ''}
-                <div class="meal-item-macros">
-                  B: ${e.protein.toFixed(1)}g | W: ${e.carbs.toFixed(1)}g | T: ${e.fats.toFixed(1)}g
-                </div>
-                ${e.note ? `<div class="meal-item-note"><em>${escapeHtml(e.note)}</em></div>` : ''}
-              </div>
-            </div>
-          </li>
-        `
-      )
-      .join("");
+        .map((e) => {
+          const imgPart = e.image
+            ? `<img src="${e.image}" alt="${escapeHtml(e.description || "Posiłek")}" class="meal-item-img" />`
+            : "";
+          return safeHtml`<li><div class="meal-item">${trusted(imgPart)}<div class="meal-item-body"><div><strong>${fmtDate(e.ts)}</strong> - <strong>${e.calories} kcal</strong></div><div>${e.description || ""}</div><div class="meal-item-macros">B: ${e.protein.toFixed(1)}g | W: ${e.carbs.toFixed(1)}g | T: ${e.fats.toFixed(1)}g</div><div class="meal-item-note"><em>${e.note || ""}</em></div></div></div></li>`;
+        })
+        .join("");
     } catch (error) {
-      mealList.innerHTML = `<li class="list-error">Nie udało się załadować posiłków. ${escapeHtml(getErrorMessage(error))}</li>`;
+      const li = document.createElement("li");
+      li.className = "list-error";
+      li.textContent = `Nie udało się załadować posiłków. ${getErrorMessage(error)}`;
+      mealList.replaceChildren(li);
     }
   };
 

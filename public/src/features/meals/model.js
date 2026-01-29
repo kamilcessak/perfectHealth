@@ -1,14 +1,28 @@
 import { uuid } from "../../utils/uuid.js";
+import {
+  MEAL_TYPE,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_NOTE_LENGTH,
+} from "../../constants.js";
 
 // Waliduje dane posiłku
 export const validateMeal = (e) => {
-  if (e.type !== "meal") throw new Error("Nieprawidłowy typ posiłku");
+  if (e.type !== MEAL_TYPE) throw new Error("Nieprawidłowy typ posiłku");
   if (!Number.isFinite(e.calories) || e.calories <= 0)
     throw new Error("Podaj prawidłową liczbę kalorii");
-  if (!Number.isFinite(e.protein)) throw new Error("Podaj prawidłową wartość białka");
-  if (!Number.isFinite(e.carbs)) throw new Error("Podaj prawidłową wartość węglowodanów");
-  if (!Number.isFinite(e.fats)) throw new Error("Podaj prawidłową wartość tłuszczów");
+  if (!Number.isFinite(e.protein) || e.protein < 0)
+    throw new Error("Podaj prawidłową wartość białka");
+  if (!Number.isFinite(e.carbs) || e.carbs < 0)
+    throw new Error("Podaj prawidłową wartość węglowodanów");
+  if (!Number.isFinite(e.fats) || e.fats < 0)
+    throw new Error("Podaj prawidłową wartość tłuszczów");
   if (!Number.isFinite(e.ts)) throw new Error("Nieprawidłowa data");
+  if (e.description.length > MAX_DESCRIPTION_LENGTH)
+    throw new Error(`Opis może mieć co najwyżej ${MAX_DESCRIPTION_LENGTH} znaków.`);
+  if (e.note.length > MAX_NOTE_LENGTH)
+    throw new Error(`Notatka może mieć co najwyżej ${MAX_NOTE_LENGTH} znaków.`);
+  if (e.image != null && (typeof e.image !== "string" || !e.image.startsWith("data:")))
+    throw new Error("Nieprawidłowy format zdjęcia.");
 
   return e;
 };
@@ -26,7 +40,7 @@ export const newMeal = ({
 }) => {
   const result = {
     id: uuid(),
-    type: "meal",
+    type: MEAL_TYPE,
     calories: +calories,
     description: `${description}`,
     protein: +protein,

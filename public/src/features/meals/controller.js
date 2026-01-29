@@ -1,32 +1,23 @@
 import { newMeal } from "./model.js";
 import * as repo from "./repo.js";
+import {
+  assertRequired,
+  assertNumberInRange,
+  assertNonNegativeNumber,
+  parseDateTime,
+  optionalString,
+} from "../../utils/validation.js";
+import {
+  CALORIES_MIN,
+  CALORIES_MAX,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_NOTE_LENGTH,
+  MEAL_TYPE,
+  MEALS_TODAY_FETCH_LIMIT,
+  DEFAULT_LIST_LIMIT,
+} from "../../constants.js";
 
-export const toTimestamp = (date, time) => {
-  const hasDate = date && date.trim() !== "";
-  const hasTime = time && time.trim() !== "";
-
-  if (!hasDate && !hasTime) return Date.now();
-
-  const d = hasDate ? date : new Date().toISOString().slice(0, 10);
-  const t = hasTime ? time : "00:00";
-
-  const [year, month, day] = d.split("-").map(Number);
-  const [hours, minutes] = t.split(":").map(Number);
-
-  if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
-    throw new Error("Nieprawidłowa data");
-  }
-  if (isNaN(hours) || isNaN(minutes)) {
-    throw new Error("Nieprawidłowa godzina");
-  }
-
-  const localDate = new Date(year, month - 1, day, hours, minutes);
-  const ts = localDate.getTime();
-
-  if (!Number.isFinite(ts)) throw new Error("Nieprawidłowa data/godzina");
-
-  return ts;
-};
+export const toTimestamp = (date, time) => parseDateTime(date, time);
 
 // Dodaje nowy posiłek do bazy danych
 export const addMeal = async ({
@@ -40,24 +31,36 @@ export const addMeal = async ({
   time,
   note,
 }) => {
-  const ts = toTimestamp(date, time);
+  const caloriesVal = assertNumberInRange(
+    assertRequired(calories, "Kalorie"),
+    CALORIES_MIN,
+    CALORIES_MAX,
+    "Kalorie"
+  );
+  const descriptionStr = optionalString(description, MAX_DESCRIPTION_LENGTH);
+  const proteinVal = assertNonNegativeNumber(protein ?? 0, "Białko (g)");
+  const carbsVal = assertNonNegativeNumber(carbs ?? 0, "Węglowodany (g)");
+  const fatsVal = assertNonNegativeNumber(fats ?? 0, "Tłuszcze (g)");
+  const ts = parseDateTime(date, time);
+  const noteStr = optionalString(note, MAX_NOTE_LENGTH);
+
   const entry = newMeal({
-    calories,
-    description,
-    protein,
-    carbs,
-    fats,
-    image,
+    calories: caloriesVal,
+    description: descriptionStr,
+    protein: proteinVal,
+    carbs: carbsVal,
+    fats: fatsVal,
+    image: image ?? null,
     ts,
-    note,
+    note: noteStr,
   });
 
   return repo.add(entry);
 };
 
 // Pobiera listę ostatnich posiłków
-export const getMealList = (limit = 20) => {
-  return repo.latestByType("meal", limit);
+export const getMealList = (limit = DEFAULT_LIST_LIMIT) => {
+  return repo.latestByType(MEAL_TYPE, limit);
 };
 
 // Pobiera wszystkie posiłki z dzisiejszego dnia
@@ -82,7 +85,7 @@ export const getTodayMeals = async () => {
     999
   ).getTime();
 
-  const allMeals = await repo.latestByType("meal", 100);
+  const allMeals = await repo.latestByType(MEAL_TYPE, MEALS_TODAY_FETCH_LIMIT);
   const todayMeals = allMeals.filter((meal) => {
     const mealDate = new Date(meal.ts);
     const isToday =

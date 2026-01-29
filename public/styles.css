@@ -188,6 +188,14 @@ main {
   margin-top: 1rem;
 }
 
+.form-msg-success {
+  color: #0a7;
+}
+
+.form-msg-error {
+  color: #c00;
+}
+
 .location-input-row {
   display: flex;
   gap: 8px;

@@ -1,13 +1,12 @@
 import { tx } from "../../core/database.js";
-
-const STORE = "meals";
+import { STORE_MEALS, INDEX_BY_TS, MEAL_TYPE, DEFAULT_LIST_LIMIT } from "../../constants.js";
 
 // Dodaje nowy posiłek do bazy danych
 export const add = async (entry) => {
-  const t = await tx(STORE, "readwrite");
+  const t = await tx(STORE_MEALS, "readwrite");
 
   await new Promise((res, rej) => {
-    const req = t.objectStore(STORE).add(entry);
+    const req = t.objectStore(STORE_MEALS).add(entry);
     req.onsuccess = () => res();
     req.onerror = () => rej(req.error);
   });
@@ -21,9 +20,9 @@ export const add = async (entry) => {
 };
 
 // Pobiera najnowsze posiłki danego typu
-export const latestByType = async (type, limit = 20) => {
-  const t = await tx(STORE, "readonly");
-  const idx = t.objectStore(STORE).index("by_ts");
+export const latestByType = async (type, limit = DEFAULT_LIST_LIMIT) => {
+  const t = await tx(STORE_MEALS, "readonly");
+  const idx = t.objectStore(STORE_MEALS).index(INDEX_BY_TS);
   const results = [];
 
   await new Promise((res, rej) => {
@@ -46,8 +45,8 @@ export const latestByType = async (type, limit = 20) => {
 
 // Pobiera posiłki z określonego zakresu dat
 export const getByDateRange = async (startTs, endTs) => {
-  const t = await tx(STORE, "readonly");
-  const idx = t.objectStore(STORE).index("by_ts");
+  const t = await tx(STORE_MEALS, "readonly");
+  const idx = t.objectStore(STORE_MEALS).index(INDEX_BY_TS);
   const results = [];
 
   await new Promise((res, rej) => {
@@ -57,7 +56,7 @@ export const getByDateRange = async (startTs, endTs) => {
       if (!cur) return res();
       const v = cur.value;
 
-      if (v.type === "meal" && v.ts >= startTs && v.ts <= endTs) {
+      if (v.type === MEAL_TYPE && v.ts >= startTs && v.ts <= endTs) {
         results.push(v);
       }
 

@@ -1,13 +1,12 @@
 import { tx } from "../../core/database.js";
-
-const STORE = "measurements";
+import { STORE_MEASUREMENTS, INDEX_BY_TS, DEFAULT_LIST_LIMIT } from "../../constants.js";
 
 // Dodaje nowy pomiar do bazy danych
 export const add = async (entry) => {
-  const t = await tx(STORE, "readwrite");
+  const t = await tx(STORE_MEASUREMENTS, "readwrite");
 
   await new Promise((res, rej) => {
-    const req = t.objectStore(STORE).add(entry);
+    const req = t.objectStore(STORE_MEASUREMENTS).add(entry);
     req.onsuccess = () => res();
     req.onerror = () => rej(req.error);
   });
@@ -21,9 +20,9 @@ export const add = async (entry) => {
 };
 
 // Pobiera najnowsze pomiary danego typu (np. "bp" lub "weight")
-export const latestByType = async (type, limit = 20) => {
-  const t = await tx(STORE, "readonly");
-  const idx = t.objectStore(STORE).index("by_ts");
+export const latestByType = async (type, limit = DEFAULT_LIST_LIMIT) => {
+  const t = await tx(STORE_MEASUREMENTS, "readonly");
+  const idx = t.objectStore(STORE_MEASUREMENTS).index(INDEX_BY_TS);
   const results = [];
 
   await new Promise((res, rej) => {
