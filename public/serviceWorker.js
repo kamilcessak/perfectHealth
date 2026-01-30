@@ -1,14 +1,16 @@
-const CACHE = "perfecthealth-cache-v9";
-// Lista podstawowych zasobów aplikacji do cache'owania przy instalacji
+const CACHE = "perfecthealth-cache-v10";
+// App Shell – minimalny zestaw do wyświetlenia powłoki i uruchomienia routera (offline)
 const APP_SHELL = [
   "index.html",
   "styles.css",
   "manifest.webmanifest",
   "icons/icon.png",
-
   "src/main.js",
+  "src/constants.js",
   "src/core/router.js",
-  "src/core/store.js",
+  "src/core/database.js",
+  "src/utils/error.js",
+  "src/utils/debounce.js",
 ];
 
 // Instalacja Service Workera - cache'uje podstawowe zasoby aplikacji
@@ -67,12 +69,16 @@ self.addEventListener("fetch", (e) => {
           }
           return res;
         } catch {
-          const cached = await caches.match("index.html");
+          const cached =
+            (await caches.match(req)) ||
+            (await caches.match("/index.html")) ||
+            (await caches.match("index.html"));
           return (
             cached ||
-            new Response("<h1>Offline</h1>", {
-              headers: { "Content-Type": "text/html" },
-            })
+            new Response(
+              "<!DOCTYPE html><html lang=\"pl\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Offline</title></head><body><p>Brak połączenia. Otwórz aplikację ponownie, gdy będziesz online.</p></body></html>",
+              { headers: { "Content-Type": "text/html; charset=utf-8" } }
+            )
           );
         }
       })()

@@ -1,42 +1,11 @@
-import { tx } from "../../core/database.js";
+import { add as dbAdd, queryIndex } from "../../core/database.js";
 import { STORE_MEASUREMENTS, INDEX_BY_TS, DEFAULT_LIST_LIMIT } from "../../constants.js";
 
-// Dodaje nowy pomiar do bazy danych
-export const add = async (entry) => {
-  const t = await tx(STORE_MEASUREMENTS, "readwrite");
+export const add = (entry) => dbAdd(STORE_MEASUREMENTS, entry);
 
-  await new Promise((res, rej) => {
-    const req = t.objectStore(STORE_MEASUREMENTS).add(entry);
-    req.onsuccess = () => res();
-    req.onerror = () => rej(req.error);
+export const latestByType = (type, limit = DEFAULT_LIST_LIMIT) =>
+  queryIndex(STORE_MEASUREMENTS, INDEX_BY_TS, {
+    direction: "prev",
+    limit,
+    filter: (v) => v.type === type,
   });
-
-  await new Promise((res, rej) => {
-    t.oncomplete = () => res();
-    t.onerror = () => rej(t.error);
-  });
-
-  return entry;
-};
-
-// Pobiera najnowsze pomiary danego typu (np. "bp" lub "weight")
-export const latestByType = async (type, limit = DEFAULT_LIST_LIMIT) => {
-  const t = await tx(STORE_MEASUREMENTS, "readonly");
-  const idx = t.objectStore(STORE_MEASUREMENTS).index(INDEX_BY_TS);
-  const results = [];
-
-  await new Promise((res, rej) => {
-    const req = idx.openCursor(null, "prev");
-    req.onsuccess = () => {
-      const cur = req.result;
-      if (!cur) return res();
-      const v = cur.value;
-      if (v.type === type) results.push(v);
-      if (results.length >= limit) return res();
-      cur.continue();
-    };
-    req.onerror = () => rej(req.error);
-  });
-
-  return results;
-};

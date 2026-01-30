@@ -1,12 +1,13 @@
 import {
-  getBpListForDisplay,
-  getWeightListForDisplay,
-  addWeight,
-  addBp,
   getCurrentPosition,
   resolveAddressFromCoords,
 } from "./controller.js";
-import { invalidateSummaryCache } from "../dashboard/controller.js";
+import {
+  getBpListForDisplay,
+  getWeightListForDisplay,
+  addBp,
+  addWeight,
+} from "../core/store.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
 import {
   BP_SYS_MIN,
@@ -138,7 +139,6 @@ const MeasurementsView = async () => {
       });
 
       bpForm.reset();
-      invalidateSummaryCache();
       bpMsg.className = "form-msg form-msg-success";
       bpMsg.textContent = "Zapisano pomiar!";
       await refreshBp();
@@ -163,7 +163,6 @@ const MeasurementsView = async () => {
       });
 
       wgForm.reset();
-      invalidateSummaryCache();
       wgMsg.className = "form-msg form-msg-success";
       wgMsg.textContent = "Zapisano pomiar!";
 

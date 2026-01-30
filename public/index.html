@@ -30,7 +30,12 @@
       </div>
     </header>
 
-    <main id="app">Ładowanie….</main>
+    <main id="app" class="app-shell" role="main" aria-live="polite">
+      <div class="app-shell-loading" aria-hidden="false">
+        <span class="app-shell-spinner" aria-hidden="true"></span>
+        <p class="app-shell-text">Ładowanie aplikacji…</p>
+      </div>
+    </main>
 
     <script type="module" src="src/main.js"></script>
   </body>

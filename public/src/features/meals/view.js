@@ -1,5 +1,4 @@
-import { getMealListForDisplay, addMeal } from "./controller.js";
-import { invalidateSummaryCache } from "../dashboard/controller.js";
+import { getMealListForDisplay, addMeal } from "../core/store.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
 import { ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
 import {
@@ -85,7 +84,6 @@ const MealsView = async () => {
       });
 
       mealForm.reset();
-      invalidateSummaryCache();
       mealMsg.className = "form-msg form-msg-success";
       mealMsg.textContent = "Zapisano posiłek!";
       await refreshMeals();
