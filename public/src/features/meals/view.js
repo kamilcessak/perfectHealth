@@ -1,7 +1,7 @@
-import { getMealList, addMeal } from "./controller.js";
+import { getMealListForDisplay, addMeal } from "./controller.js";
 import { invalidateSummaryCache } from "../dashboard/controller.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
-import { assertImageFile, ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
+import { ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
 import {
   CALORIES_MIN,
   CALORIES_MAX,
@@ -67,29 +67,17 @@ const MealsView = async () => {
   const onMealSubmit = async (e) => {
     e.preventDefault();
     mealMsg.textContent = "";
+    mealMsg.className = "form-msg";
     const fd = new FormData(mealForm);
 
     try {
-      let imageData = null;
-      const imageFile = fd.get("image");
-
-      if (imageFile && imageFile.size > 0) {
-        assertImageFile(imageFile);
-        imageData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
-      }
-
       await addMeal({
         calories: fd.get("calories"),
         description: fd.get("description"),
         protein: fd.get("protein") || 0,
         carbs: fd.get("carbs") || 0,
         fats: fd.get("fats") || 0,
-        image: imageData,
+        imageFile: fd.get("image"),
         date: fd.get("date"),
         time: fd.get("time"),
         note: fd.get("note"),
@@ -112,31 +100,33 @@ const MealsView = async () => {
     mealForm.removeEventListener("submit", onMealSubmit);
   };
 
-  const refreshMeals = async () => {
-    try {
-      const items = await getMealList(DEFAULT_LIST_LIMIT);
-
-      if (!items.length) {
-        const li = document.createElement("li");
-        li.textContent = "Brak danych";
-        mealList.replaceChildren(li);
-        return;
-      }
-
-      mealList.innerHTML = items
-        .map((e) => {
-          const imgPart = e.image
-            ? `<img src="${e.image}" alt="${escapeHtml(e.description || "Posiłek")}" class="meal-item-img" />`
-            : "";
-          return safeHtml`<li><div class="meal-item">${trusted(imgPart)}<div class="meal-item-body"><div><strong>${fmtDate(e.ts)}</strong> - <strong>${e.calories} kcal</strong></div><div>${e.description || ""}</div><div class="meal-item-macros">B: ${e.protein.toFixed(1)}g | W: ${e.carbs.toFixed(1)}g | T: ${e.fats.toFixed(1)}g</div><div class="meal-item-note"><em>${e.note || ""}</em></div></div></div></li>`;
-        })
-        .join("");
-    } catch (error) {
+  const renderMealList = (items, error) => {
+    if (error) {
       const li = document.createElement("li");
       li.className = "list-error";
       li.textContent = `Nie udało się załadować posiłków. ${getErrorMessage(error)}`;
       mealList.replaceChildren(li);
+      return;
     }
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.textContent = "Brak danych";
+      mealList.replaceChildren(li);
+      return;
+    }
+    mealList.innerHTML = items
+      .map((e) => {
+        const imgPart = e.image
+          ? `<img src="${e.image}" alt="${escapeHtml(e.description || "Posiłek")}" class="meal-item-img" />`
+          : "";
+        return safeHtml`<li><div class="meal-item">${trusted(imgPart)}<div class="meal-item-body"><div><strong>${fmtDate(e.ts)}</strong> - <strong>${e.calories} kcal</strong></div><div>${e.description || ""}</div><div class="meal-item-macros">B: ${e.protein.toFixed(1)}g | W: ${e.carbs.toFixed(1)}g | T: ${e.fats.toFixed(1)}g</div><div class="meal-item-note"><em>${e.note || ""}</em></div></div></div></li>`;
+      })
+      .join("");
+  };
+
+  const refreshMeals = async () => {
+    const { items, error } = await getMealListForDisplay(DEFAULT_LIST_LIMIT);
+    renderMealList(items, error);
   };
 
   await refreshMeals();

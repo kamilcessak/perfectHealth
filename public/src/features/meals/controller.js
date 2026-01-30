@@ -6,7 +6,9 @@ import {
   assertNonNegativeNumber,
   parseDateTime,
   optionalString,
+  assertImageFile,
 } from "../../utils/validation.js";
+import { readFileAsDataURL } from "../../utils/file.js";
 import {
   CALORIES_MIN,
   CALORIES_MAX,
@@ -19,6 +21,15 @@ import {
 
 export const toTimestamp = (date, time) => parseDateTime(date, time);
 
+// Konwertuje plik obrazu na data URL
+const imageFileToDataURL = async (imageFile) => {
+  if (!imageFile || !(imageFile instanceof File) || imageFile.size === 0) {
+    return null;
+  }
+  assertImageFile(imageFile);
+  return readFileAsDataURL(imageFile);
+};
+
 // Dodaje nowy posiłek do bazy danych
 export const addMeal = async ({
   calories,
@@ -26,7 +37,7 @@ export const addMeal = async ({
   protein,
   carbs,
   fats,
-  image,
+  imageFile,
   date,
   time,
   note,
@@ -43,6 +54,7 @@ export const addMeal = async ({
   const fatsVal = assertNonNegativeNumber(fats ?? 0, "Tłuszcze (g)");
   const ts = parseDateTime(date, time);
   const noteStr = optionalString(note, MAX_NOTE_LENGTH);
+  const imageData = await imageFileToDataURL(imageFile);
 
   const entry = newMeal({
     calories: caloriesVal,
@@ -50,7 +62,7 @@ export const addMeal = async ({
     protein: proteinVal,
     carbs: carbsVal,
     fats: fatsVal,
-    image: image ?? null,
+    image: imageData,
     ts,
     note: noteStr,
   });
@@ -61,6 +73,16 @@ export const addMeal = async ({
 // Pobiera listę ostatnich posiłków
 export const getMealList = (limit = DEFAULT_LIST_LIMIT) => {
   return repo.latestByType(MEAL_TYPE, limit);
+};
+
+// Zwraca dane do wyświetlenia listy posiłków
+export const getMealListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
+  try {
+    const items = await getMealList(limit);
+    return { items, error: null };
+  } catch (e) {
+    return { items: [], error: e };
+  }
 };
 
 // Pobiera wszystkie posiłki z dzisiejszego dnia

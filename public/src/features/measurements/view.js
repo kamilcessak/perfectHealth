@@ -1,7 +1,13 @@
-import { getBpList, getWeightList, addWeight, addBp } from "./controller.js";
+import {
+  getBpListForDisplay,
+  getWeightListForDisplay,
+  addWeight,
+  addBp,
+  getCurrentPosition,
+  resolveAddressFromCoords,
+} from "./controller.js";
 import { invalidateSummaryCache } from "../dashboard/controller.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
-import { rateLimitedFetch } from "../../utils/rateLimit.js";
 import {
   BP_SYS_MIN,
   BP_SYS_MAX,
@@ -12,10 +18,6 @@ import {
   MAX_NOTE_LENGTH,
   MAX_LOCATION_LENGTH,
   DEFAULT_LIST_LIMIT,
-  GEOLOCATION_TIMEOUT_MS,
-  NOMINATIM_BASE_URL,
-  NOMINATIM_MIN_INTERVAL_MS,
-  NOMINATIM_USER_AGENT,
 } from "../../constants.js";
 
 const MeasurementsView = async () => {
@@ -97,84 +99,27 @@ const MeasurementsView = async () => {
   const wgMsg = root.querySelector("#weight-msg");
   const wgList = root.querySelector("#weight-list");
 
-  // Funkcja do pobierania lokalizacji
-  const getLocation = () => {
-    if (!navigator.geolocation) {
-      bpMsg.className = "form-msg form-msg-error";
-      bpMsg.textContent =
-        "Geolokacja nie jest obsługiwana przez twoją przeglądarkę";
-      return;
-    }
+  const resetLocationButton = () => {
+    getLocationBtn.disabled = false;
+    getLocationBtn.textContent = "📍 Pobierz";
+  };
 
+  const getLocation = async () => {
     getLocationBtn.disabled = true;
     getLocationBtn.textContent = "⏳ Pobieranie...";
     bpMsg.textContent = "";
+    bpMsg.className = "form-msg";
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-
-          const url = `${NOMINATIM_BASE_URL}/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
-          const response = await rateLimitedFetch(url, {
-            key: "nominatim",
-            minIntervalMs: NOMINATIM_MIN_INTERVAL_MS,
-            headers: { "User-Agent": NOMINATIM_USER_AGENT },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const address = data.address;
-            let locationStr = "";
-
-            if (address) {
-              const parts = [];
-              if (address.road) parts.push(address.road);
-              if (address.house_number) parts.push(address.house_number);
-              if (address.city || address.town || address.village) {
-                parts.push(address.city || address.town || address.village);
-              }
-              locationStr =
-                parts.join(", ") ||
-                data.display_name ||
-                `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-            } else {
-              locationStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-            }
-
-            locationInput.value = locationStr;
-            getLocationBtn.disabled = false;
-            getLocationBtn.textContent = "📍 Pobierz";
-          } else {
-            // Fallback do współrzędnych
-            locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(
-              6
-            )}`;
-            getLocationBtn.disabled = false;
-            getLocationBtn.textContent = "📍 Pobierz";
-          }
-        } catch (error) {
-          // Fallback do współrzędnych jeśli reverse geocoding nie działa
-          const { latitude, longitude } = position.coords;
-          locationInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(
-            6
-          )}`;
-          getLocationBtn.disabled = false;
-          getLocationBtn.textContent = "📍 Pobierz";
-        }
-      },
-      (error) => {
-        bpMsg.className = "form-msg form-msg-error";
-        bpMsg.textContent = `Błąd pobierania lokalizacji: ${getErrorMessage(error)}`;
-        getLocationBtn.disabled = false;
-        getLocationBtn.textContent = "📍 Pobierz";
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: GEOLOCATION_TIMEOUT_MS,
-        maximumAge: 0,
-      }
-    );
+    try {
+      const coords = await getCurrentPosition();
+      const address = await resolveAddressFromCoords(coords.latitude, coords.longitude);
+      locationInput.value = address;
+    } catch (error) {
+      bpMsg.className = "form-msg form-msg-error";
+      bpMsg.textContent = `Błąd pobierania lokalizacji: ${getErrorMessage(error)}`;
+    } finally {
+      resetLocationButton();
+    }
   };
 
   const onBpSubmit = async (e) => {
@@ -239,51 +184,59 @@ const MeasurementsView = async () => {
     wgForm.removeEventListener("submit", onWgSubmit);
   };
 
-  const refreshBp = async () => {
-    try {
-      const items = await getBpList(DEFAULT_LIST_LIMIT);
-      if (!items.length) {
-        const li = document.createElement("li");
-        li.textContent = "Brak danych";
-        bpList.replaceChildren(li);
-        return;
-      }
-      bpList.innerHTML = items
-        .map((e) => {
-          const locPart = e.location ? ` <br/><small>📍 ${escapeHtml(e.location)}</small>` : "";
-          const notePart = e.note ? ` <br/><em>${escapeHtml(e.note)}</em>` : "";
-          return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>${trusted(locPart)}${trusted(notePart)} </li>`;
-        })
-        .join("");
-    } catch (error) {
+  const renderBpList = (items, error) => {
+    if (error) {
       const li = document.createElement("li");
       li.className = "list-error";
       li.textContent = `Nie udało się załadować pomiarów. ${getErrorMessage(error)}`;
       bpList.replaceChildren(li);
+      return;
     }
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.textContent = "Brak danych";
+      bpList.replaceChildren(li);
+      return;
+    }
+    bpList.innerHTML = items
+      .map((e) => {
+        const locPart = e.location ? ` <br/><small>📍 ${escapeHtml(e.location)}</small>` : "";
+        const notePart = e.note ? ` <br/><em>${escapeHtml(e.note)}</em>` : "";
+        return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value}/${e.value2} mmHg</strong>${trusted(locPart)}${trusted(notePart)} </li>`;
+      })
+      .join("");
   };
 
-  const refreshWg = async () => {
-    try {
-      const items = await getWeightList(DEFAULT_LIST_LIMIT);
-      if (!items.length) {
-        const li = document.createElement("li");
-        li.textContent = "Brak danych";
-        wgList.replaceChildren(li);
-        return;
-      }
-      wgList.innerHTML = items
-        .map((e) => {
-          const notePart = e.note ? ` <em>${escapeHtml(e.note)}</em>` : "";
-          return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value.toFixed(1)} kg</strong>${trusted(notePart)}</li>`;
-        })
-        .join("");
-    } catch (error) {
+  const renderWeightList = (items, error) => {
+    if (error) {
       const li = document.createElement("li");
       li.className = "list-error";
       li.textContent = `Nie udało się załadować pomiarów wagi. ${getErrorMessage(error)}`;
       wgList.replaceChildren(li);
+      return;
     }
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.textContent = "Brak danych";
+      wgList.replaceChildren(li);
+      return;
+    }
+    wgList.innerHTML = items
+      .map((e) => {
+        const notePart = e.note ? ` <em>${escapeHtml(e.note)}</em>` : "";
+        return safeHtml`<li>${fmtDate(e.ts)} - <strong>${e.value.toFixed(1)} kg</strong>${trusted(notePart)}</li>`;
+      })
+      .join("");
+  };
+
+  const refreshBp = async () => {
+    const { items, error } = await getBpListForDisplay(DEFAULT_LIST_LIMIT);
+    renderBpList(items, error);
+  };
+
+  const refreshWg = async () => {
+    const { items, error } = await getWeightListForDisplay(DEFAULT_LIST_LIMIT);
+    renderWeightList(items, error);
   };
 
   await Promise.all([refreshBp(), refreshWg()]);
