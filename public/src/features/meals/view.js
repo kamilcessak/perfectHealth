@@ -1,4 +1,5 @@
 import { getMealList, addMeal } from "./controller.js";
+import { invalidateSummaryCache } from "../dashboard/controller.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
 import { assertImageFile, ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
 import {
@@ -13,11 +14,11 @@ const MealsView = async () => {
   const root = document.createElement("section");
 
   root.innerHTML = `
-  <div class="mealsWrapper">
-    <div class="mealsFormWrapper">
+  <div class="feature-layout">
+    <div class="feature-form-col">
       <div class="card">
         <h1>Dodaj posiłek:</h1>
-        <form id="meal-form">
+        <form id="meal-form" class="app-form">
           <label>Kalorie
             <input name="calories" type="number" min="${CALORIES_MIN}" max="${CALORIES_MAX}" required />
           </label>
@@ -50,7 +51,7 @@ const MealsView = async () => {
         <p id="meal-msg" class="form-msg"></p>
       </div>
     </div>
-    <div class="mealsListWrapper">
+    <div class="feature-list-col">
       <div class="card">
         <h2>Ostatnie posiłki:</h2>
         <ul id="meal-list"></ul>
@@ -63,7 +64,7 @@ const MealsView = async () => {
   const mealMsg = root.querySelector("#meal-msg");
   const mealList = root.querySelector("#meal-list");
 
-  mealForm.addEventListener("submit", async (e) => {
+  const onMealSubmit = async (e) => {
     e.preventDefault();
     mealMsg.textContent = "";
     const fd = new FormData(mealForm);
@@ -95,6 +96,7 @@ const MealsView = async () => {
       });
 
       mealForm.reset();
+      invalidateSummaryCache();
       mealMsg.className = "form-msg form-msg-success";
       mealMsg.textContent = "Zapisano posiłek!";
       await refreshMeals();
@@ -102,7 +104,13 @@ const MealsView = async () => {
       mealMsg.className = "form-msg form-msg-error";
       mealMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
-  });
+  };
+
+  mealForm.addEventListener("submit", onMealSubmit);
+
+  const destroy = () => {
+    mealForm.removeEventListener("submit", onMealSubmit);
+  };
 
   const refreshMeals = async () => {
     try {
@@ -132,7 +140,7 @@ const MealsView = async () => {
   };
 
   await refreshMeals();
-  return root;
+  return { el: root, destroy };
 };
 
 const fmtDate = (ts) => {

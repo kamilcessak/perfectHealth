@@ -40,5 +40,13 @@ export const MAX_LOCATION_LENGTH = 200;
 // Router
 export const RENDER_DEBOUNCE_MS = 80;
 
+// Cache podsumowania dashboardu (unikanie re-fetch przy szybkiej nawigacji)
+export const DASHBOARD_CACHE_TTL_MS = 30_000;
+
 // Geolokacja (timeout w ms)
 export const GEOLOCATION_TIMEOUT_MS = 10000;
+
+// Rate-limiting API zewnętrznych (Nominatim: max 1 req/s, wymaga User-Agent)
+export const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org";
+export const NOMINATIM_MIN_INTERVAL_MS = 1000;
+export const NOMINATIM_USER_AGENT = "PerfectHealth/1.0 (health tracker; contact: local)";

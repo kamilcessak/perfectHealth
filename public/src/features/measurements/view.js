@@ -1,5 +1,7 @@
 import { getBpList, getWeightList, addWeight, addBp } from "./controller.js";
+import { invalidateSummaryCache } from "../dashboard/controller.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
+import { rateLimitedFetch } from "../../utils/rateLimit.js";
 import {
   BP_SYS_MIN,
   BP_SYS_MAX,
@@ -11,17 +13,20 @@ import {
   MAX_LOCATION_LENGTH,
   DEFAULT_LIST_LIMIT,
   GEOLOCATION_TIMEOUT_MS,
+  NOMINATIM_BASE_URL,
+  NOMINATIM_MIN_INTERVAL_MS,
+  NOMINATIM_USER_AGENT,
 } from "../../constants.js";
 
 const MeasurementsView = async () => {
   const root = document.createElement("section");
 
   root.innerHTML = `
-  <div class="measurementsWrapper">
-    <div class="measurementsFormWrapper">
+  <div class="feature-layout">
+    <div class="feature-form-col">
       <div class="card">
           <h1>Dodaj pomiar ciśnienia:</h1>
-          <form id="bp-form">
+          <form id="bp-form" class="app-form">
               <label>Skurczowe
                   <input name="sys" type="number" min="${BP_SYS_MIN}" max="${BP_SYS_MAX}" required />
               </label>
@@ -37,7 +42,7 @@ const MeasurementsView = async () => {
               <label>Lokalizacja
                   <div class="location-input-row">
                       <input name="location" type="text" placeholder="Opcjonalna..." class="location-input" maxlength="${MAX_LOCATION_LENGTH}" />
-                      <button type="button" id="get-location-btn">📍 Pobierz</button>
+                      <button type="button" id="get-location-btn" class="btn btn-location">📍 Pobierz</button>
                   </div>
               </label>
               <label>Notatka
@@ -50,7 +55,7 @@ const MeasurementsView = async () => {
 
       <div class="card">
         <h1>Dodaj pomiar wagi:</h1>
-        <form id="weight-form">
+        <form id="weight-form" class="app-form">
           <label>Waga (kg)
             <input name="kg" type="number" step="0.1" min="${WEIGHT_MIN_KG}" max="${WEIGHT_MAX_KG}" required />
           </label>
@@ -68,7 +73,7 @@ const MeasurementsView = async () => {
         <p id="weight-msg" class="form-msg"></p>
       </div>
     </div>
-    <div class="measurementsListWrapper">
+    <div class="feature-list-col">
       <div class="card">
           <h2>Ostatnie pomiary ciśnienia:</h2>
           <ul id="bp-list"></ul>
@@ -110,9 +115,12 @@ const MeasurementsView = async () => {
         try {
           const { latitude, longitude } = position.coords;
 
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-          );
+          const url = `${NOMINATIM_BASE_URL}/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+          const response = await rateLimitedFetch(url, {
+            key: "nominatim",
+            minIntervalMs: NOMINATIM_MIN_INTERVAL_MS,
+            headers: { "User-Agent": NOMINATIM_USER_AGENT },
+          });
 
           if (response.ok) {
             const data = await response.json();
@@ -169,9 +177,7 @@ const MeasurementsView = async () => {
     );
   };
 
-  getLocationBtn.addEventListener("click", getLocation);
-
-  bpForm.addEventListener("submit", async (e) => {
+  const onBpSubmit = async (e) => {
     e.preventDefault();
     bpMsg.textContent = "";
     const fd = new FormData(bpForm);
@@ -187,6 +193,7 @@ const MeasurementsView = async () => {
       });
 
       bpForm.reset();
+      invalidateSummaryCache();
       bpMsg.className = "form-msg form-msg-success";
       bpMsg.textContent = "Zapisano pomiar!";
       await refreshBp();
@@ -194,9 +201,9 @@ const MeasurementsView = async () => {
       bpMsg.className = "form-msg form-msg-error";
       bpMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
-  });
+  };
 
-  wgForm.addEventListener("submit", async (e) => {
+  const onWgSubmit = async (e) => {
     e.preventDefault();
     wgMsg.textContent = "";
 
@@ -211,6 +218,7 @@ const MeasurementsView = async () => {
       });
 
       wgForm.reset();
+      invalidateSummaryCache();
       wgMsg.className = "form-msg form-msg-success";
       wgMsg.textContent = "Zapisano pomiar!";
 
@@ -219,7 +227,17 @@ const MeasurementsView = async () => {
       wgMsg.className = "form-msg form-msg-error";
       wgMsg.textContent = `Błąd: ${getErrorMessage(error)}`;
     }
-  });
+  };
+
+  getLocationBtn.addEventListener("click", getLocation);
+  bpForm.addEventListener("submit", onBpSubmit);
+  wgForm.addEventListener("submit", onWgSubmit);
+
+  const destroy = () => {
+    getLocationBtn.removeEventListener("click", getLocation);
+    bpForm.removeEventListener("submit", onBpSubmit);
+    wgForm.removeEventListener("submit", onWgSubmit);
+  };
 
   const refreshBp = async () => {
     try {
@@ -269,7 +287,7 @@ const MeasurementsView = async () => {
   };
 
   await Promise.all([refreshBp(), refreshWg()]);
-  return root;
+  return { el: root, destroy };
 };
 
 const fmtDate = (ts) => {

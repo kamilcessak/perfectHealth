@@ -5,6 +5,9 @@ import { RENDER_DEBOUNCE_MS } from "../constants.js";
 // Mapa przechowująca zarejestrowane trasy aplikacji
 const routes = new Map();
 
+// Ostatni ustawiony aktywny hash – unikanie zbędnych aktualizacji DOM w setActiveLink
+let lastActiveHash = null;
+
 // Rejestruje trasy w routerze
 export const registerRoute = (path, loader) => {
   routes.set(path, loader);
@@ -12,17 +15,66 @@ export const registerRoute = (path, loader) => {
 
 // Start routera opartego na hash w URL
 export const startRouter = () => {
+  let currentCleanup = null;
+  let navigationId = 0;
+  let lastRenderedHash = null;
+
+  const runCleanup = () => {
+    if (typeof currentCleanup === "function") {
+      try {
+        currentCleanup();
+      } catch (cleanupError) {
+        console.error("Błąd podczas czyszczenia widoku:", cleanupError);
+      }
+      currentCleanup = null;
+    }
+  };
+
   const render = async () => {
     const hash = location.hash.replace("#", "") || "/";
+    const normalizedHash = "#" + (hash || "/");
+
+    if (lastRenderedHash === normalizedHash) {
+      return;
+    }
+
     const loader = routes.get(hash) || routes.get("/404");
     const root = document.querySelector("#app");
+    if (!root) return;
+
+    runCleanup();
+    navigationId += 1;
+    const thisNavigationId = navigationId;
 
     try {
-      const view = await loader();
-      root.replaceChildren(view);
+      const result = await loader();
+
+      if (thisNavigationId !== navigationId) {
+        if (result?.el != null && typeof result.destroy === "function") {
+          try {
+            result.destroy();
+          } catch (e) {
+            console.error("Błąd podczas czyszczenia odrzuconego widoku:", e);
+          }
+        }
+        return;
+      }
+
+      const viewEl = result?.el != null ? result.el : result;
+      if (result?.el != null && typeof result.destroy === "function") {
+        currentCleanup = result.destroy;
+      } else {
+        currentCleanup = null;
+      }
+      lastRenderedHash = normalizedHash;
+      root.replaceChildren(viewEl);
       setActiveLink();
     } catch (error) {
+      if (thisNavigationId !== navigationId) {
+        return;
+      }
       console.error(error);
+      runCleanup();
       const box = document.createElement("div");
       box.className = "errorBox";
       const strong = document.createElement("strong");
@@ -47,9 +99,11 @@ export const startRouter = () => {
   }
 };
 
-// Oznacza aktywny link w nawigacji na podstawie aktualnego hash
+// Oznacza aktywny link w nawigacji na podstawie aktualnego hash (tylko gdy się zmienił)
 export const setActiveLink = () => {
   const current = location.hash || "#/";
+  if (lastActiveHash === current) return;
+  lastActiveHash = current;
   document.querySelectorAll("a[data-route]").forEach((a) => {
     a.classList.toggle("active", a.getAttribute("href") === current);
   });
@@ -58,7 +112,7 @@ export const setActiveLink = () => {
 // Trasa 404 dla nieistniejących stron
 registerRoute("/404", async () => {
   const el = document.createElement("div");
-  el.className = "404box";
+  el.className = "page-404 card";
   const h2 = document.createElement("h2");
   h2.textContent = "Nie znaleziono strony";
   el.appendChild(h2);

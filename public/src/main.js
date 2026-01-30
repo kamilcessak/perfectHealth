@@ -37,12 +37,9 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/serviceWorker.js").catch(console.error);
 }
 
-// Obsługa promptu instalacji PWA
-let deferredPrompt;
+// Obsługa promptu instalacji PWA (e.preventDefault() zapobiega automatycznemu wyświetleniu)
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
-  deferredPrompt = e;
-  console.log("PWA może być zainstalowana");
 });
 
 setupOfflineBanner();
