@@ -7,7 +7,10 @@ import {
   CALORIES_TARGET_DEFAULT,
 } from "../../constants.js";
 
-// Pobiera podsumowanie dzisiejszych danych (cache w core/store.js)
+/**
+ * Pobiera podsumowanie dzisiejszych danych (ostatnia waga, ostatnie BP, kalorie); cache w core/store.js.
+ * @returns {Promise<{ date: Date; calories: { eaten: number; target: number }; lastWeight: object|null; lastBp: object|null }>}
+ */
 export const getTodaySummary = async () => {
   const latestWg = await latestByType(MEASUREMENT_TYPE_WEIGHT, DASHBOARD_LATEST_COUNT);
   const latestBp = await latestByType(MEASUREMENT_TYPE_BP, DASHBOARD_LATEST_COUNT);

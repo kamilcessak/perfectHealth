@@ -1,15 +1,20 @@
+/**
+ * Punkt wejścia aplikacji PWA: router, banner offline, rejestracja Service Workera.
+ * Rejestruje trasy (dashboard, pomiary, posiłki) i uruchamia nawigację po hash.
+ */
 import { startRouter, setActiveLink } from "./core/router.js";
-
-// Rejestracja tras aplikacji
 import "./features/dashboard/routes.js";
 import "./features/measurements/routes.js";
 import "./features/meals/routes.js";
 
-// Konfiguracja bannera offline
+/**
+ * Konfiguruje banner offline: pokazuje/ukrywa w zależności od navigator.onLine.
+ * Nasłuchuje zdarzeń online/offline i ewentualnie czeka na DOMContentLoaded przed pierwszą aktualizacją.
+ */
 const setupOfflineBanner = () => {
   const banner = document.querySelector("#offline-banner");
   if (!banner) return;
-  
+
   const update = () => {
     const isOnline = navigator.onLine;
     if (isOnline) {
@@ -24,7 +29,6 @@ const setupOfflineBanner = () => {
   window.addEventListener("online", update);
   window.addEventListener("offline", update);
 
-  // Czeka na załadowanie DOM
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", update);
   } else {
@@ -32,12 +36,13 @@ const setupOfflineBanner = () => {
   }
 };
 
-// Rejestracja Service Workera dla obsługi offline
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/serviceWorker.js").catch(console.error);
+  const swUrl = new URL("../serviceWorker.js", import.meta.url).href;
+  navigator.serviceWorker
+    .register(swUrl, { scope: "/" })
+    .catch((err) => console.error("SW registration failed:", err));
 }
 
-// Obsługa promptu instalacji PWA (e.preventDefault() zapobiega automatycznemu wyświetleniu)
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
 });

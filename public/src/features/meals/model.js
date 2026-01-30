@@ -5,7 +5,11 @@ import {
   MAX_NOTE_LENGTH,
 } from "../../constants.js";
 
-// Waliduje dane posiłku
+/**
+ * Waliduje dane posiłku (type, calories, protein, carbs, fats, ts, description, note, image); rzuca Error w przeciwnym razie.
+ * @param {object} e - Obiekt posiłku.
+ * @returns {object} Ten sam obiekt.
+ */
 export const validateMeal = (e) => {
   if (e.type !== MEAL_TYPE) throw new Error("Nieprawidłowy typ posiłku");
   if (!Number.isFinite(e.calories) || e.calories <= 0)
@@ -34,7 +38,11 @@ export const validateMeal = (e) => {
   return e;
 };
 
-// Tworzy nowy obiekt posiłku
+/**
+ * Tworzy nowy obiekt posiłku z walidacją (id, type, calories, description, protein, carbs, fats, image, ts, note).
+ * @param {object} opts
+ * @returns {object}
+ */
 export const newMeal = ({
   calories,
   description = "",

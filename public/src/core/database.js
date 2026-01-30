@@ -63,12 +63,22 @@ export const database = () => {
   return _dbPromise;
 };
 
-// Transakcja do operacji na bazie danych
+/**
+ * Zwraca Promise transakcji IndexedDB dla danego store.
+ * @param {string|string[]} store - Nazwa store lub tablica nazw.
+ * @param {IDBTransactionMode} [mode="readonly"] - Tryb transakcji.
+ * @returns {Promise<IDBTransaction>}
+ */
 export const tx = (store, mode = "readonly") => {
   return database().then((d) => d.transaction(store, mode));
 };
 
-// Dodaje wpis do store. Zwraca ten sam obiekt entry.
+/**
+ * Dodaje wpis do store. Zwraca ten sam obiekt entry.
+ * @param {string} storeName - Nazwa object store.
+ * @param {object} entry - Obiekt do zapisania (musi mieć keyPath).
+ * @returns {Promise<object>} Ten sam obiekt entry.
+ */
 export const add = async (storeName, entry) => {
   const t = await tx(storeName, "readwrite");
   await new Promise((res, rej) => {
@@ -83,7 +93,13 @@ export const add = async (storeName, entry) => {
   return entry;
 };
 
-// Iteruje po indeksie opcjonalnie filtruje i ogranicza wyniki.
+/**
+ * Iteruje po indeksie; opcjonalnie filtruje i ogranicza wyniki.
+ * @param {string} storeName - Nazwa object store.
+ * @param {string} indexName - Nazwa indeksu.
+ * @param {object} [opts] - Opcje: direction, limit, filter(v), stopWhen(v).
+ * @returns {Promise<object[]>} Tablica wyników.
+ */
 export const queryIndex = async (
   storeName,
   indexName,

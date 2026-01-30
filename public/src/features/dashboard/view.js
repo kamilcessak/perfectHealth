@@ -1,4 +1,4 @@
-import { getTodaySummary } from "../core/store.js";
+import { getTodaySummary } from "../../core/store.js";
 import { getErrorMessage } from "../../utils/error.js";
 
 const DashboardView = async () => {

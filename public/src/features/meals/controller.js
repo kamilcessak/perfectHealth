@@ -24,7 +24,11 @@ import {
 
 export const toTimestamp = (date, time) => parseDateTime(date, time);
 
-// Waliduje plik i kompresuje do Blob
+/**
+ * Waliduje plik obrazu i kompresuje do Blob (resize + JPEG).
+ * @param {File|null|undefined} imageFile
+ * @returns {Promise<Blob|null>}
+ */
 const imageFileToBlob = async (imageFile) => {
   if (imageFile == null) return null;
   const file = assertImageFile(imageFile, MAX_IMAGE_INPUT_SIZE);
@@ -35,7 +39,11 @@ const imageFileToBlob = async (imageFile) => {
   });
 };
 
-// Dodaje nowy posiłek do bazy danych
+/**
+ * Dodaje nowy posiłek do bazy danych (walidacja + imageFileToBlob + repo.add).
+ * @param {object} data - calories, description, protein, carbs, fats, imageFile, date, time, note.
+ * @returns {Promise<object>}
+ */
 export const addMeal = async ({
   calories,
   description,
@@ -75,12 +83,20 @@ export const addMeal = async ({
   return repo.add(entry);
 };
 
-// Pobiera listę ostatnich posiłków
+/**
+ * Pobiera listę ostatnich posiłków (najnowsze first).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getMealList = (limit = DEFAULT_LIST_LIMIT) => {
   return repo.latestByType(MEAL_TYPE, limit);
 };
 
-// Zwraca dane do wyświetlenia listy posiłków
+/**
+ * Zwraca dane do wyświetlenia listy posiłków; { items, error }.
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<{ items: object[]; error: Error|null }>}
+ */
 export const getMealListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   try {
     const items = await getMealList(limit);
@@ -90,7 +106,10 @@ export const getMealListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   }
 };
 
-// Pobiera wszystkie posiłki z dzisiejszego dnia
+/**
+ * Pobiera wszystkie posiłki z dzisiejszego dnia (wg lokalnej daty).
+ * @returns {Promise<object[]>}
+ */
 export const getTodayMeals = async () => {
   const now = new Date();
   const startOfDay = new Date(
@@ -125,7 +144,10 @@ export const getTodayMeals = async () => {
   return todayMeals;
 };
 
-// Oblicza sumę kalorii z dzisiejszych posiłków
+/**
+ * Oblicza sumę kalorii z dzisiejszych posiłków.
+ * @returns {Promise<number>}
+ */
 export const getTodayCalories = async () => {
   const meals = await getTodayMeals();
   return meals.reduce((sum, meal) => sum + meal.calories, 0);

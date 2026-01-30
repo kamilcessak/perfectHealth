@@ -1,4 +1,9 @@
-// Ładuje plik jako obraz, skaluje do maxDimension i zwraca Blob
+/**
+ * Ładuje plik jako obraz, skaluje do maxDimension i zwraca Blob (JPEG).
+ * @param {File} file - Plik obrazu.
+ * @param {{ maxDimension?: number; quality?: number }} [opts] - maxDimension (px), quality (0–1).
+ * @returns {Promise<Blob>}
+ */
 export const resizeImageToBlob = (file, { maxDimension = 1024, quality = 0.82 } = {}) => {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);

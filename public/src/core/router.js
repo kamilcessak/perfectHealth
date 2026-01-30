@@ -2,18 +2,24 @@ import { getErrorMessage } from "../utils/error.js";
 import { debounce } from "../utils/debounce.js";
 import { RENDER_DEBOUNCE_MS } from "../constants.js";
 
-// Mapa przechowująca zarejestrowane trasy aplikacji
+/** @type {Map<string, () => Promise<{ el: HTMLElement; destroy?: () => void } | HTMLElement>>} Mapa zarejestrowanych tras. */
 const routes = new Map();
 
-// Ostatni ustawiony aktywny hash – unikanie zbędnych aktualizacji DOM w setActiveLink
+/** Ostatni ustawiony aktywny hash – unikanie zbędnych aktualizacji DOM w setActiveLink. */
 let lastActiveHash = null;
 
-// Rejestruje trasy w routerze
+/**
+ * Rejestruje trasę w routerze.
+ * @param {string} path - Ścieżka (hash bez #), np. "/", "/measurements".
+ * @param {() => Promise<{ el: HTMLElement; destroy?: () => void } | HTMLElement>} loader - Funkcja ładująca widok.
+ */
 export const registerRoute = (path, loader) => {
   routes.set(path, loader);
 };
 
-// Start routera opartego na hash w URL
+/**
+ * Uruchamia router oparty na hash w URL: nasłuchuje hashchange, renderuje widok, obsługuje cleanup poprzedniego widoku.
+ */
 export const startRouter = () => {
   let currentCleanup = null;
   let navigationId = 0;
@@ -99,7 +105,9 @@ export const startRouter = () => {
   }
 };
 
-// Oznacza aktywny link w nawigacji na podstawie aktualnego hash (tylko gdy się zmienił)
+/**
+ * Oznacza aktywny link w nawigacji (data-route) na podstawie aktualnego hash; aktualizuje tylko gdy hash się zmienił.
+ */
 export const setActiveLink = () => {
   const current = location.hash || "#/";
   if (lastActiveHash === current) return;
@@ -109,7 +117,7 @@ export const setActiveLink = () => {
   });
 };
 
-// Trasa 404 dla nieistniejących stron
+/** Trasa 404 – wyświetlana dla nieistniejących ścieżek. */
 registerRoute("/404", async () => {
   const el = document.createElement("div");
   el.className = "page-404 card";

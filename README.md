@@ -20,18 +20,41 @@ PWA (Progressive Web App) do zarządzania pomiarami zdrowotnymi, posiłkami i ka
   - Service Workers
   - Geolocation API
 
-## Instalacja lokalna
+## Uruchomienie lokalne (testowanie)
 
+**Katalogiem głównym serwera musi być folder `public`** – w przeciwnym razie ładowanie modułów (`/src/...`) się nie uda i pojawi się błąd „Failed to fetch dynamically imported module”.
+
+**Najprościej – skrypt startowy (port 8000 lub podaj inny, np. 8001):**
 ```bash
-# Uruchom lokalny serwer HTTP (np. Python)
-cd public
-python3 -m http.server 8000
+cd /ścieżka/do/perfectHealth
+./start.sh
+# lub na innym porcie:
+./start.sh 8001
+```
+Otwórz: **http://localhost:8000** (lub http://localhost:8001)
 
-# Lub użyj npx
+**Opcja 2 – Python (z katalogu projektu):**
+```bash
+cd /ścieżka/do/perfectHealth
+python3 -m http.server 8000 --directory public
+```
+Otwórz: **http://localhost:8000**
+
+**Opcja 3 – Python (wejście do `public`):**
+```bash
+cd /ścieżka/do/perfectHealth/public
+python3 -m http.server 8000
+```
+Otwórz: **http://localhost:8000**
+
+**Opcja 4 – Node (npx):**
+```bash
+cd /ścieżka/do/perfectHealth
 npx http-server public -p 8000
 ```
+Otwórz: **http://localhost:8000**
 
-Aplikacja będzie dostępna pod adresem: http://localhost:8000
+**Uwaga:** Jeśli uruchomisz serwer z katalogu głównego (np. `python3 -m http.server 8001` w `perfectHealth/`), w katalogu głównym jest plik `index.html`, który przekierowuje do `public/` – otwórz wtedy **http://localhost:8001/** i po przekierowaniu na **http://localhost:8001/public/** aplikacja załaduje się poprawnie.
 
 ## Wdrożenie
 

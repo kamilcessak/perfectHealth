@@ -26,7 +26,10 @@ import {
 
 export const toTimestamp = (date, time) => parseDateTime(date, time);
 
-// Zwraca współrzędne z geolokalizacji
+/**
+ * Zwraca współrzędne z geolokalizacji (navigator.geolocation.getCurrentPosition).
+ * @returns {Promise<{ latitude: number; longitude: number }>}
+ */
 export const getCurrentPosition = () =>
   new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -44,7 +47,12 @@ export const getCurrentPosition = () =>
     );
   });
 
-// Zwraca adres dla współrzędnych
+/**
+ * Zwraca adres (reverse geocoding) dla współrzędnych (Nominatim).
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<string>} Adres lub "lat, lon" w razie błędu.
+ */
 export const resolveAddressFromCoords = async (latitude, longitude) => {
   const url = `${NOMINATIM_BASE_URL}/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
   const response = await rateLimitedFetch(url, {
@@ -76,7 +84,11 @@ export const resolveAddressFromCoords = async (latitude, longitude) => {
   );
 };
 
-// Dodaje nowy pomiar ciśnienia krwi
+/**
+ * Dodaje nowy pomiar ciśnienia krwi (walidacja + repo.add).
+ * @param {{ sys: unknown; dia: unknown; date?: string; time?: string; note?: string; location?: string }} data
+ * @returns {Promise<object>}
+ */
 export const addBp = async ({ sys, dia, date, time, note, location }) => {
   const sysVal = assertNumberInRange(sys, BP_SYS_MIN, BP_SYS_MAX, "Skurczowe (mmHg)");
   const diaVal = assertNumberInRange(dia, BP_DIA_MIN, BP_DIA_MAX, "Rozkurczowe (mmHg)");
@@ -95,7 +107,11 @@ export const addBp = async ({ sys, dia, date, time, note, location }) => {
   return repo.add(entry);
 };
 
-// Dodaje nowy pomiar wagi
+/**
+ * Dodaje nowy pomiar wagi (walidacja + repo.add).
+ * @param {{ kg: unknown; date?: string; time?: string; note?: string }} data
+ * @returns {Promise<object>}
+ */
 export const addWeight = async ({ kg, date, time, note }) => {
   const kgVal = assertNumberInRange(kg, WEIGHT_MIN_KG, WEIGHT_MAX_KG, "Waga (kg)");
   const ts = parseDateTime(date, time);
@@ -106,17 +122,29 @@ export const addWeight = async ({ kg, date, time, note }) => {
   return repo.add(entry);
 };
 
-// Pobiera listę pomiarów ciśnienia
+/**
+ * Pobiera listę pomiarów ciśnienia (najnowsze first).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getBpList = (limit = DEFAULT_LIST_LIMIT) => {
   return repo.latestByType(MEASUREMENT_TYPE_BP, limit);
 };
 
-// Pobiera listę pomiarów wagi
+/**
+ * Pobiera listę pomiarów wagi (najnowsze first).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getWeightList = (limit = DEFAULT_LIST_LIMIT) => {
   return repo.latestByType(MEASUREMENT_TYPE_WEIGHT, limit);
 };
 
-// Zwraca dane do wyświetlenia list
+/**
+ * Zwraca dane do wyświetlenia listy pomiarów ciśnienia; { items, error }.
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<{ items: object[]; error: Error|null }>}
+ */
 export const getBpListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   try {
     const items = await getBpList(limit);

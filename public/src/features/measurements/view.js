@@ -7,7 +7,7 @@ import {
   getWeightListForDisplay,
   addBp,
   addWeight,
-} from "../core/store.js";
+} from "../../core/store.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
 import {
   BP_SYS_MIN,

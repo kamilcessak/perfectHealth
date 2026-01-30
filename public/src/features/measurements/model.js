@@ -12,7 +12,11 @@ import {
   MAX_LOCATION_LENGTH,
 } from "../../constants.js";
 
-// Waliduje dane pomiaru ciśnienia krwi
+/**
+ * Waliduje dane pomiaru ciśnienia krwi (type, value, value2, ts, note, location); rzuca Error w przeciwnym razie.
+ * @param {object} e - Obiekt pomiaru BP.
+ * @returns {object} Ten sam obiekt.
+ */
 export const validateBloodPreassure = (e) => {
   if (e.type !== MEASUREMENT_TYPE_BP) throw new Error("Nieprawidłowy typ pomiaru");
   if (!Number.isFinite(e.value) || !Number.isFinite(e.value2))
@@ -30,7 +34,11 @@ export const validateBloodPreassure = (e) => {
   return e;
 };
 
-// Waliduje dane pomiaru wagi
+/**
+ * Waliduje dane pomiaru wagi (type, value, ts, note); rzuca Error w przeciwnym razie.
+ * @param {object} e - Obiekt pomiaru wagi.
+ * @returns {object} Ten sam obiekt.
+ */
 export const validateWeight = (e) => {
   if (e.type !== MEASUREMENT_TYPE_WEIGHT) throw new Error("Nieprawidłowy typ pomiaru");
   if (!Number.isFinite(e.value)) throw new Error("Podaj poprawną wartość wagi");
@@ -43,7 +51,11 @@ export const validateWeight = (e) => {
   return e;
 };
 
-// Tworzy nowy obiekt pomiaru ciśnienia krwi z walidacją
+/**
+ * Tworzy nowy obiekt pomiaru ciśnienia krwi z walidacją (id, type, value, value2, ts, note, location).
+ * @param {{ sys: number; dia: number; ts?: number; note?: string; location?: string }} opts
+ * @returns {object}
+ */
 export const newBloodPressure = ({ sys, dia, ts = Date.now(), note = "", location = "" }) => {
   const result = {
     id: uuid(),
@@ -58,7 +70,11 @@ export const newBloodPressure = ({ sys, dia, ts = Date.now(), note = "", locatio
   return validateBloodPreassure(result);
 };
 
-// Tworzy nowy obiekt pomiaru wagi z walidacją
+/**
+ * Tworzy nowy obiekt pomiaru wagi z walidacją (id, type, value, ts, note).
+ * @param {{ kg: number; ts?: number; note?: string }} opts
+ * @returns {object}
+ */
 export const newWeight = ({ kg, ts = Date.now(), note = "" }) => {
   const result = {
     id: uuid(),

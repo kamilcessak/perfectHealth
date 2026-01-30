@@ -1,4 +1,4 @@
-import { getMealListForDisplay, addMeal } from "../core/store.js";
+import { getMealListForDisplay, addMeal } from "../../core/store.js";
 import { getErrorMessage, escapeHtml, safeHtml, trusted } from "../../utils/error.js";
 import { ALLOWED_IMAGE_TYPES } from "../../utils/validation.js";
 import {

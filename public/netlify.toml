@@ -1,3 +1,15 @@
+# Najpierw: pliki statyczne (SW, manifest) – bez przekierowania na index.html
+[[redirects]]
+  from = "/serviceWorker.js"
+  to = "/serviceWorker.js"
+  status = 200
+
+[[redirects]]
+  from = "/manifest.webmanifest"
+  to = "/manifest.webmanifest"
+  status = 200
+
+# SPA: pozostałe ścieżki → index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"

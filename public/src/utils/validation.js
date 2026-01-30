@@ -1,6 +1,11 @@
 const trim = (v) => (typeof v === "string" ? v.trim() : v);
 
-// Wymagane pole (nie puste po trim)
+/**
+ * Wymagane pole – nie puste po trim; rzuca Error w przeciwnym razie.
+ * @param {unknown} value - Wartość (string po trim).
+ * @param {string} fieldName - Nazwa pola (do komunikatu błędu).
+ * @returns {string}
+ */
 export const assertRequired = (value, fieldName) => {
   const s = value != null ? trim(String(value)) : "";
   if (s === "") {
@@ -9,7 +14,14 @@ export const assertRequired = (value, fieldName) => {
   return s;
 };
 
-// Liczba w zakresie [min, max]
+/**
+ * Liczba w zakresie [min, max]; rzuca Error w przeciwnym razie.
+ * @param {unknown} value - Wartość (liczba).
+ * @param {number} min - Min. włącznie.
+ * @param {number} max - Max. włącznie.
+ * @param {string} fieldName - Nazwa pola (do komunikatu błędu).
+ * @returns {number}
+ */
 export const assertNumberInRange = (value, min, max, fieldName) => {
   const n = Number(value);
   if (!Number.isFinite(n)) {
@@ -21,7 +33,12 @@ export const assertNumberInRange = (value, min, max, fieldName) => {
   return n;
 };
 
-// Liczba większa lub równa zero
+/**
+ * Liczba większa lub równa zero; rzuca Error w przeciwnym razie.
+ * @param {unknown} value - Wartość (liczba).
+ * @param {string} fieldName - Nazwa pola (do komunikatu błędu).
+ * @returns {number}
+ */
 export const assertNonNegativeNumber = (value, fieldName) => {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) {
@@ -30,7 +47,13 @@ export const assertNonNegativeNumber = (value, fieldName) => {
   return n;
 };
 
-// Maksymalna długość tekstu
+/**
+ * Maksymalna długość tekstu; rzuca Error gdy przekroczona.
+ * @param {unknown} value - Wartość (string).
+ * @param {number} maxLength - Maks. liczba znaków.
+ * @param {string} fieldName - Nazwa pola (do komunikatu błędu).
+ * @returns {string}
+ */
 export const assertMaxLength = (value, maxLength, fieldName) => {
   const s = value != null ? String(value) : "";
   if (s.length > maxLength) {
@@ -39,7 +62,12 @@ export const assertMaxLength = (value, maxLength, fieldName) => {
   return s;
 };
 
-// Opcjonalny tekst – zwraca trim lub ""
+/**
+ * Opcjonalny tekst – zwraca trim lub ""; rzuca Error gdy przekroczony maxLength.
+ * @param {unknown} value - Wartość (string).
+ * @param {number} [maxLength=0] - Maks. długość (0 = bez limitu).
+ * @returns {string}
+ */
 export const optionalString = (value, maxLength = 0) => {
   const s = value != null ? trim(String(value)) : "";
   if (maxLength > 0 && s.length > maxLength) {
@@ -48,7 +76,12 @@ export const optionalString = (value, maxLength = 0) => {
   return s;
 };
 
-// Walidacja daty i godziny – zwraca timestamp (lub Date.now() jeśli oba puste)
+/**
+ * Walidacja daty i godziny – zwraca timestamp (lub Date.now() jeśli oba puste).
+ * @param {string|undefined} date - Data RRRR-MM-DD.
+ * @param {string|undefined} time - Godzina GG:MM.
+ * @returns {number} Timestamp (ms).
+ */
 export const parseDateTime = (date, time) => {
   const hasDate = date != null && trim(String(date)) !== "";
   const hasTime = time != null && trim(String(time)) !== "";
@@ -79,12 +112,17 @@ export const parseDateTime = (date, time) => {
   return ts;
 };
 
-// Maks. rozmiar pliku wejściowego
+/** Maks. rozmiar pliku obrazu wejściowego (bajty). */
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-// Dozwolone typy MIME
+/** Dozwolone typy MIME dla zdjęć. */
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-// Waliduje plik obrazu: musi być instancją File
+/**
+ * Waliduje plik obrazu: musi być instancją File, dozwolony typ i rozmiar; rzuca Error w przeciwnym razie.
+ * @param {File|null|undefined} file - Plik do walidacji.
+ * @param {number} [maxSize=MAX_IMAGE_SIZE] - Maks. rozmiar (bajty).
+ * @returns {File|null} Ten sam plik lub null gdy file jest null/undefined lub pusty.
+ */
 export const assertImageFile = (file, maxSize = MAX_IMAGE_SIZE) => {
   if (file == null) return null;
   if (!(file instanceof File)) {

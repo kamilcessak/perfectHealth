@@ -1,48 +1,115 @@
-const CACHE = "perfecthealth-cache-v10";
-// App Shell – minimalny zestaw do wyświetlenia powłoki i uruchomienia routera (offline)
-const APP_SHELL = [
-  "index.html",
-  "styles.css",
-  "manifest.webmanifest",
-  "icons/icon.png",
-  "src/main.js",
-  "src/constants.js",
-  "src/core/router.js",
-  "src/core/database.js",
-  "src/utils/error.js",
-  "src/utils/debounce.js",
+const CACHE = "perfecthealth-cache-v18";
+
+const APP_SHELL_PATHS = [
+  "./",  // Root URL - ważne dla nawigacji offline
+  "./index.html",
+  "./styles.css",
+  "./manifest.webmanifest",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./src/main.js",
+  "./src/constants.js",
+  "./src/core/router.js",
+  "./src/core/database.js",
+  "./src/core/store.js",
+  "./src/utils/error.js",
+  "./src/utils/debounce.js",
+  "./src/utils/file.js",
+  "./src/utils/image.js",
+  "./src/utils/rateLimit.js",
+  "./src/utils/uuid.js",
+  "./src/utils/validation.js",
+  "./src/features/dashboard/routes.js",
+  "./src/features/dashboard/view.js",
+  "./src/features/dashboard/controller.js",
+  "./src/features/measurements/routes.js",
+  "./src/features/measurements/view.js",
+  "./src/features/measurements/controller.js",
+  "./src/features/measurements/model.js",
+  "./src/features/measurements/repo.js",
+  "./src/features/meals/routes.js",
+  "./src/features/meals/view.js",
+  "./src/features/meals/controller.js",
+  "./src/features/meals/model.js",
+  "./src/features/meals/repo.js",
 ];
 
-// Instalacja Service Workera - cache'uje podstawowe zasoby aplikacji
+const getBaseUrl = () => new URL("./", self.location.href).href;
+
+/** Zwraca URL z zamienionym hostem (localhost ↔ 127.0.0.1) – cache może być pod innym hostem. */
+function alternateHostUrl(urlString) {
+  try {
+    const u = new URL(urlString);
+    if (u.hostname === "localhost") u.hostname = "127.0.0.1";
+    else if (u.hostname === "127.0.0.1") u.hostname = "localhost";
+    else return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Szuka w cache: najpierw req, potem wersja z drugim hostem (localhost/127.0.0.1). */
+async function matchCacheAnyHost(request, opts = {}) {
+  const cached = await caches.match(request, opts);
+  if (cached) return cached;
+  // Obsłuż zarówno Request object jak i string URL
+  const urlString = typeof request === "string" ? request : request.url;
+  const alt = alternateHostUrl(urlString);
+  if (alt) return caches.match(alt, opts);
+  return undefined;
+}
+
+// Instalacja – cache z pełnymi URL
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_SHELL)));
+  const baseUrl = getBaseUrl();
+  
+  e.waitUntil(
+    caches.open(CACHE).then(async (cache) => {
+      await Promise.allSettled(
+        APP_SHELL_PATHS.map(async (path) => {
+          const url = new URL(path, baseUrl).href;
+          try {
+            await cache.add(url);
+          } catch (err) {
+            console.warn("[SW] Failed to cache:", url, err.message);
+          }
+        })
+      );
+      return self.skipWaiting();
+    })
+  );
 });
 
-// Aktywacja Service Workera - usuwa stare cache'e
+// Aktywacja – usuwa stare cache, claim() aby od razu obsługiwać stronę
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
-        )
-      )
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 // Obsługa żądań sieciowych
 self.addEventListener("fetch", (e) => {
-  const req = e.request;
-  const url = new URL(req.url);
+  try {
+    const req = e.request;
+    const url = new URL(req.url);
 
-  // Zewnętrzne API - nie cache'ujemy (zawsze z sieci)
+  // Zewnętrzne API - nie cache'ujemy, ale obsługujemy błędy offline
   if (url.origin !== location.origin) {
     if (url.hostname.includes("nominatim.openstreetmap.org")) {
-      e.respondWith(fetch(req));
+      // Dla nominatim nie cache'ujemy, ale zwracamy pusty response offline zamiast błędu
+      e.respondWith(
+        fetch(req).catch(() => new Response(JSON.stringify({ error: "offline" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" }
+        }))
+      );
       return;
     }
-    // Inne zewnętrzne zasoby - Network First
+    // Inne zewnętrzne zasoby - Network First z fallbackiem
     e.respondWith(
       fetch(req)
         .then((res) => {
@@ -52,13 +119,16 @@ self.addEventListener("fetch", (e) => {
           }
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() => matchCacheAnyHost(req))
     );
     return;
   }
 
-  // HTML (nawigacja) - Network First z fallback do cache
-  if (req.mode === "navigate") {
+  if (req.mode === "navigate" || req.destination === "document") {
+    const baseUrl = new URL("./", self.location.href).href;
+    const indexUrl = new URL("index.html", baseUrl).href;
+    const rootUrl = baseUrl; // np. "http://localhost:8001/"
+    
     e.respondWith(
       (async () => {
         try {
@@ -68,17 +138,18 @@ self.addEventListener("fetch", (e) => {
             caches.open(CACHE).then((c) => c.put(req, clone));
           }
           return res;
-        } catch {
+        } catch (err) {
+          // Offline: szukaj w cache - najpierw dokładny URL, potem index.html, potem root
           const cached =
-            (await caches.match(req)) ||
-            (await caches.match("/index.html")) ||
-            (await caches.match("index.html"));
-          return (
-            cached ||
-            new Response(
-              "<!DOCTYPE html><html lang=\"pl\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Offline</title></head><body><p>Brak połączenia. Otwórz aplikację ponownie, gdy będziesz online.</p></body></html>",
-              { headers: { "Content-Type": "text/html; charset=utf-8" } }
-            )
+            (await matchCacheAnyHost(req, { ignoreSearch: true })) ||
+            (await matchCacheAnyHost(indexUrl)) ||
+            (await matchCacheAnyHost(rootUrl));
+          if (cached) return cached;
+          
+          // Ostateczny fallback - statyczny HTML offline
+          return new Response(
+            "<!DOCTYPE html><html lang=\"pl\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Offline</title></head><body><p>Brak połączenia. Otwórz aplikację ponownie, gdy będziesz online.</p></body></html>",
+            { headers: { "Content-Type": "text/html; charset=utf-8" } }
           );
         }
       })()
@@ -86,60 +157,35 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Statyczne zasoby (JS, CSS) - Cache First (najpierw cache, potem sieć)
-  if (
-    req.url.includes("/src/") ||
-    req.destination === "script" ||
-    req.destination === "style"
-  ) {
-    e.respondWith(
-      caches.match(req).then((cached) => {
-        if (cached) return cached;
-
-        return fetch(req).then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, clone));
-          }
-          return res;
-        });
-      })
-    );
-    return;
-  }
-
-  // Obrazy - Cache First z fallback
-  if (req.destination === "image") {
-    e.respondWith(
-      caches.match(req).then((cached) => {
-        if (cached) return cached;
-
-        return fetch(req)
-          .then((res) => {
-            if (res.ok) {
-              const clone = res.clone();
-              caches.open(CACHE).then((c) => c.put(req, clone));
-            }
-            return res;
-          })
-          .catch(() => {
-            return cached || new Response("", { status: 404 });
-          });
-      })
-    );
-    return;
-  }
-
-  // Inne zasoby - Network First z fallback do cache
+  // WSZYSTKIE pozostałe zasoby z tego samego origin – Cache First
   e.respondWith(
-    fetch(req)
-      .then((res) => {
+    (async () => {
+      const cached = await matchCacheAnyHost(req);
+      if (cached) return cached;
+      
+      try {
+        const res = await fetch(req);
         if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then((c) => c.put(req, clone));
         }
         return res;
-      })
-      .catch(() => caches.match(req))
+      } catch {
+        // Fallback dla różnych typów zasobów
+        const fallback = await matchCacheAnyHost(req);
+        if (fallback) return fallback;
+        
+        if (req.url.endsWith(".js")) {
+          return new Response("// Offline", { status: 504, headers: { "Content-Type": "application/javascript" } });
+        }
+        if (req.url.endsWith(".css")) {
+          return new Response("/* Offline */", { status: 504, headers: { "Content-Type": "text/css" } });
+        }
+        return new Response("Offline", { status: 504 });
+      }
+    })()
   );
+  } catch (err) {
+    console.error("[SW] Fetch error:", err);
+  }
 });

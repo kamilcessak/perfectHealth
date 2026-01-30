@@ -14,18 +14,24 @@ const isCacheValid = (entry, ttlMs) =>
 const cacheEntry = (data, limit = null) =>
   ({ data, timestamp: Date.now(), limit });
 
-// Cache: { data, timestamp } lub null
+/** @type {{ data: unknown[]; timestamp: number; limit: number | null } | null} Cache listy pomiarów ciśnienia. */
 let _bpList = null;
+/** @type {{ data: unknown[]; timestamp: number; limit: number | null } | null} Cache listy pomiarów wagi. */
 let _weightList = null;
+/** @type {{ data: unknown[]; timestamp: number; limit: number | null } | null} Cache listy posiłków. */
 let _mealList = null;
+/** @type {{ data: object; timestamp: number } | null} Cache podsumowania dashboardu. */
 let _summary = null;
 
 const invalidateSummary = () => {
   _summary = null;
 };
 
-// --- Odczyt (z cache lub fetch) ---
-
+/**
+ * Pobiera listę pomiarów ciśnienia (z cache lub fetch).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getBpList = async (limit = DEFAULT_LIST_LIMIT) => {
   if (isCacheValid(_bpList, DASHBOARD_CACHE_TTL_MS) && _bpList.limit >= limit) {
     return _bpList.data.slice(0, limit);
@@ -35,6 +41,11 @@ export const getBpList = async (limit = DEFAULT_LIST_LIMIT) => {
   return data;
 };
 
+/**
+ * Pobiera listę pomiarów wagi (z cache lub fetch).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getWeightList = async (limit = DEFAULT_LIST_LIMIT) => {
   if (isCacheValid(_weightList, DASHBOARD_CACHE_TTL_MS) && _weightList.limit >= limit) {
     return _weightList.data.slice(0, limit);
@@ -44,6 +55,11 @@ export const getWeightList = async (limit = DEFAULT_LIST_LIMIT) => {
   return data;
 };
 
+/**
+ * Pobiera listę posiłków (z cache lub fetch).
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<object[]>}
+ */
 export const getMealList = async (limit = DEFAULT_LIST_LIMIT) => {
   if (isCacheValid(_mealList, DASHBOARD_CACHE_TTL_MS) && _mealList.limit >= limit) {
     return _mealList.data.slice(0, limit);
@@ -53,6 +69,10 @@ export const getMealList = async (limit = DEFAULT_LIST_LIMIT) => {
   return data;
 };
 
+/**
+ * Pobiera podsumowanie dzisiejszych danych (z cache lub fetch).
+ * @returns {Promise<object>}
+ */
 export const getTodaySummary = async () => {
   if (isCacheValid(_summary, DASHBOARD_CACHE_TTL_MS)) {
     return _summary.data;
@@ -62,8 +82,11 @@ export const getTodaySummary = async () => {
   return data;
 };
 
-// --- Odczyt do wyświetlenia (zwraca { items, error }) ---
-
+/**
+ * Pobiera listę pomiarów ciśnienia do wyświetlenia; zwraca { items, error }.
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<{ items: object[]; error: Error | null }>}
+ */
 export const getBpListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   try {
     const items = await getBpList(limit);
@@ -73,6 +96,11 @@ export const getBpListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   }
 };
 
+/**
+ * Pobiera listę pomiarów wagi do wyświetlenia; zwraca { items, error }.
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<{ items: object[]; error: Error | null }>}
+ */
 export const getWeightListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   try {
     const items = await getWeightList(limit);
@@ -82,6 +110,11 @@ export const getWeightListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   }
 };
 
+/**
+ * Pobiera listę posiłków do wyświetlenia; zwraca { items, error }.
+ * @param {number} [limit=DEFAULT_LIST_LIMIT]
+ * @returns {Promise<{ items: object[]; error: Error | null }>}
+ */
 export const getMealListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   try {
     const items = await getMealList(limit);
@@ -91,8 +124,11 @@ export const getMealListForDisplay = async (limit = DEFAULT_LIST_LIMIT) => {
   }
 };
 
-// --- Zapis (controller + invalidacja cache) ---
-
+/**
+ * Dodaje pomiar ciśnienia; invaliduje cache list i podsumowania.
+ * @param {object} data - Dane pomiaru (sys, dia, date, time, note, location).
+ * @returns {Promise<object>}
+ */
 export const addBp = async (data) => {
   const result = await measurementsController.addBp(data);
   _bpList = null;
@@ -100,6 +136,11 @@ export const addBp = async (data) => {
   return result;
 };
 
+/**
+ * Dodaje pomiar wagi; invaliduje cache list i podsumowania.
+ * @param {object} data - Dane pomiaru (kg, date, time, note).
+ * @returns {Promise<object>}
+ */
 export const addWeight = async (data) => {
   const result = await measurementsController.addWeight(data);
   _weightList = null;
@@ -107,6 +148,11 @@ export const addWeight = async (data) => {
   return result;
 };
 
+/**
+ * Dodaje posiłek; invaliduje cache list i podsumowania.
+ * @param {object} data - Dane posiłku (calories, description, protein, carbs, fats, imageFile, date, time, note).
+ * @returns {Promise<object>}
+ */
 export const addMeal = async (data) => {
   const result = await mealsController.addMeal(data);
   _mealList = null;
@@ -114,7 +160,9 @@ export const addMeal = async (data) => {
   return result;
 };
 
-// Opcjonalnie: ręczne unieważnienie cache (np. po odświeżeniu)
+/**
+ * Ręcznie unieważnia cache list (np. po odświeżeniu strony).
+ */
 export const invalidateLists = () => {
   _bpList = null;
   _weightList = null;
